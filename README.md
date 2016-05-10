@@ -15,3 +15,6 @@ where it'll listen for mesh neighbours discovered by babeld.
 - automatically create sockets as needed
 - create tun device
 - set MTU to 1280
+- use own IP protocol (253 for now)
+- decrement TTL in packet itself
+- identify seen packets by (src, dst, nonce)

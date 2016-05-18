@@ -1,10 +1,8 @@
-ADD_DEFINITIONS(-D_GNU_SOURCE)
-
-list(APPEND CMAKE_REQUIRED_DEFINITIONS '-D_GNU_SOURCE')
+list(APPEND CMAKE_REQUIRED_DEFINITIONS)
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${MMFD_BINARY_DIR} ${CMAKE_CURRENT_BINARY_DIR})
 
-add_executable(mmfd main.c genl.c)
+add_executable(mmfd main.c babeld.c neighbor.c vector.c)
 
 target_link_libraries(mmfd ${LIBNL_LIBRARIES} ${LIBNL_GENL_LIBRARIES})
 

@@ -321,7 +321,6 @@ void loop(struct context *ctx) {
 
   change_fd(ctx->efd, ctx->udpfd, EPOLL_CTL_ADD, EPOLLIN | EPOLLET);
   change_fd(ctx->efd, ctx->tunfd, EPOLL_CTL_ADD, EPOLLIN | EPOLLET);
-  change_fd(ctx->efd, ctx->babelfd, EPOLL_CTL_ADD, EPOLLIN);
   change_fd(ctx->efd, ctx->babeld_reconnect_tfd, EPOLL_CTL_ADD, EPOLLIN);
 
   int maxevents = 64;

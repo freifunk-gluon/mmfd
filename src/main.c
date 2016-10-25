@@ -38,14 +38,24 @@ int udp_open() {
   return fd;
 }
 
+/**
+ * tun_open - open a tun device, set mtu and return it
+ * @ifname: name of the interface to open
+ * @mtu: mtu to assign to the device
+ * @dev_name: path to the tun device node (normally this should be "/dev/net/tun")
+ *
+ * Return: filedescriptor to tun device on success, otherwise -1
+ */
 int tun_open(const char *ifname, uint16_t mtu, const char *dev_name) {
   int ctl_sock = -1;
   struct ifreq ifr = {};
 
+  // open tun iface
   int fd = open(dev_name, O_RDWR|O_NONBLOCK);
   if (fd < 0)
     exit_errno("could not open TUN/TAP device file");
 
+  // set name of the iface
   if (ifname)
     strncpy(ifr.ifr_name, ifname, IFNAMSIZ-1);
 
@@ -56,6 +66,7 @@ int tun_open(const char *ifname, uint16_t mtu, const char *dev_name) {
     goto error;
   }
 
+  // open control socket to set the mtu of the iface
   ctl_sock = socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP);
   if (ctl_sock < 0)
     exit_errno("socket");

@@ -9,6 +9,7 @@
 #define PORT 27275
 
 struct context {
+  bool verbose;
   int efd;
   int tunfd;
   int babelfd;

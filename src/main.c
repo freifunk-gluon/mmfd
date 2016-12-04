@@ -14,11 +14,24 @@
 #include <linux/ipv6.h>
 #include <sys/epoll.h>
 #include <sys/timerfd.h>
+#include <arpa/inet.h>
 
 #define MTU 1280
 
 static void change_fd(int efd, int fd, int type, uint32_t events);
 static void handle_udp_packet(struct context *ctx, struct header *hdr, uint8_t *packet, ssize_t len);
+
+#define FMT_NOUNCE "0x%08x"
+
+void log_verbose(struct context *ctx, const char *format, ...) {
+  if (!ctx->verbose)
+    return;
+
+  va_list args;
+  va_start(args, format);
+  vfprintf(stderr, format, args);
+  va_end(args);
+}
 
 int udp_open() {
   int fd = socket(PF_INET6, SOCK_DGRAM | SOCK_NONBLOCK, 0);
@@ -99,8 +112,10 @@ error:
 
 bool forward_packet(struct context *ctx, uint8_t *packet, ssize_t len, uint32_t nonce) {
   for (int i = 0; i < VECTOR_LEN(ctx->seen); i++) {
-    if (VECTOR_INDEX(ctx->seen, i) == nonce)
+    if (VECTOR_INDEX(ctx->seen, i) == nonce) {
+      log_verbose(ctx, "Dropped packet with already seen nounce " FMT_NOUNCE "\n", nonce);
       return false;
+    }
   }
 
   if (VECTOR_LEN(ctx->seen) > 2000)
@@ -123,6 +138,19 @@ bool forward_packet(struct context *ctx, uint8_t *packet, ssize_t len, uint32_t 
     }
   };
 
+  // prepare some log output, if necessary
+  char dest_ip_str[INET6_ADDRSTRLEN] = {};
+  if (ctx->verbose) {
+    struct ipv6hdr *hdr = (struct ipv6hdr*)packet;
+    inet_ntop(AF_INET6, &hdr->daddr, dest_ip_str, INET6_ADDRSTRLEN);
+  }
+
+  if (VECTOR_LEN(ctx->neighbors) == 0) {
+    log_verbose(ctx, "No neighbour found. Dropping packet with "
+                     "destaddr=%s, nounce=" FMT_NOUNCE ".\n", dest_ip_str, nonce);
+    return true;
+  }
+
   for (int i = 0; i < VECTOR_LEN(ctx->neighbors); i++) {
     struct neighbor *neighbor = &VECTOR_INDEX(ctx->neighbors, i);
 
@@ -133,6 +161,17 @@ bool forward_packet(struct context *ctx, uint8_t *packet, ssize_t len, uint32_t 
       .msg_iovlen = 2,
     };
 
+    if (ctx->verbose) {
+      // convert information about the neigh to strings
+      char neigh_ip_str[INET6_ADDRSTRLEN] = {};
+      char neigh_ifname[IFNAMSIZ] = {};
+      inet_ntop(AF_INET6, &neighbor->address.sin6_addr, neigh_ip_str, INET6_ADDRSTRLEN);
+      if_indextoname(neighbor->address.sin6_scope_id, neigh_ifname);
+
+      log_verbose(ctx, "Forwarding packet with destaddr=%s, "
+                       "nounce=" FMT_NOUNCE " to %s%%%s.\n",
+                       dest_ip_str, nonce, neigh_ip_str, neigh_ifname);
+    }
     sendmsg(ctx->udpfd, &msg, 0);
   }
   return true;
@@ -217,12 +256,21 @@ void tun_handle_in(struct context *ctx, int fd) {
     struct ipv6hdr *hdr = (struct ipv6hdr*)buf;
 
     // We're only interested in ip6 packets
-    if (hdr->version != 6)
+    if (hdr->version != 6) {
+      log_verbose(ctx, "Dropping non non ip6 packet.\n");
       continue;
+    }
 
     // Ignore any non-multicast packets
-    if (hdr->daddr.s6_addr[0] != 0xff)
+    if (hdr->daddr.s6_addr[0] != 0xff) {
+      if (ctx->verbose) {
+        char dest_ip_str[INET6_ADDRSTRLEN];
+        inet_ntop(AF_INET6, &hdr->daddr, dest_ip_str, INET6_ADDRSTRLEN);
+        log_verbose(ctx, "Dropping non multicast packet to dest addr %s.\n", dest_ip_str);
+      }
+
       continue;
+    }
 
     handle_packet(ctx, buf, count);
   }
@@ -323,6 +371,7 @@ void loop(struct context *ctx) {
 
 int main(int argc, char *argv[]) {
   struct context ctx = {};
+  ctx.verbose = true;
 
   int rfd = open("/dev/urandom", O_RDONLY);
   unsigned int seed;

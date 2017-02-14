@@ -45,7 +45,7 @@ struct neighbor *add_neighbor(struct context *ctx, struct in6_addr *address, cha
   };
 
   VECTOR_ADD(ctx->neighbors, neighbor);
-	return &VECTOR_INDEX(ctx->neighbors, VECTOR_LEN(ctx->neighbors) - 1);
+  return &VECTOR_INDEX(ctx->neighbors, VECTOR_LEN(ctx->neighbors) - 1);
 }
 
 void remove_neighbor(struct context *ctx, struct in6_addr *address, char *ifname) {
@@ -77,8 +77,12 @@ void neighbor_change(struct context *ctx, struct in6_addr *address, char *ifname
   struct neighbor *neighbor = find_neighbor(ctx, address, ifname);
 
   if (neighbor == NULL)
+  {
+    if ( ctx->verbose )
+      printf("did not find changed neighbour, adding\n");
+    neighbor_add(ctx,address, ifname, reach, cost);
     return;
-
+  }
   neighbor->reach = reach;
   neighbor->cost = cost;
 }

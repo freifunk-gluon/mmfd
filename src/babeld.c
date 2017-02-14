@@ -19,13 +19,24 @@ void babeld_parse_line(struct context *ctx, char *line) {
   char *ifname = NULL;
   int reach, cost;
 
+  print_neighbors(ctx);
+
   int n = sscanf(line, "%ms neighbour %*x address %ms if %ms "
-                       "reach %x rxcost %*d txcost %*d cost %d",
-                       &action, &address_str, &ifname, &reach, &cost);
+      "reach %x rxcost %*d txcost %*d cost %d",
+      &action, &address_str, &ifname, &reach, &cost);
 
   if (n != 5)
-    goto end;
-
+  {
+    n = sscanf(line, "%ms neighbour %*x address %ms if %ms "
+	"reach %x rxcost %*d txcost %*d rtt %*f rttcost %*d cost %d",
+	&action, &address_str, &ifname, &reach, &cost);
+    if (n != 5)
+    {
+      if (ctx->verbose)
+	printf("could not match line on any of the neighbor-patterns, exiting parser %d\n", n);
+      goto end;
+    }
+  }
   struct in6_addr address;
 
   if (inet_pton(AF_INET6, address_str, &address) != 1)
@@ -41,7 +52,6 @@ void babeld_parse_line(struct context *ctx, char *line) {
   if (strcmp(action, "flush") == 0)
     neighbor_flush(ctx, &address, ifname);
 
-  print_neighbors(ctx);
 
 end:
   free(action);
@@ -73,6 +83,9 @@ bool babeld_handle_in(struct context *ctx, int fd) {
   while (1) {
     stringp = ctx->babeld_buffer;
     line = strsep(&stringp, "\n");
+
+    if ((ctx->verbose) && (strlen(line) > 1))
+      printf("about to parse line: %s\n", line);
 
     if (stringp == NULL)
       break; // no line found

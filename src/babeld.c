@@ -122,7 +122,7 @@ int babeld_connect(int port) {
 
   // TODO: this is not a good idea? maybe we could receive EAGAIN!
   if (send(fd, "monitor\n", 8, 0) != 8) {
-    exit_errno("Error while subscibing to babels events");
+    exit_errno("Error while subscribing to babels events");
   }
 
   return fd;

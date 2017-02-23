@@ -32,8 +32,9 @@ void babeld_parse_line(struct context *ctx, char *line) {
 	&action, &address_str, &ifname, &reach, &cost);
     if (n != 5)
     {
-      if (ctx->verbose)
-	printf("could not match line on any of the neighbor-patterns, exiting parser %d\n", n);
+      n = sscanf(line, "%ms neighbour %*s", &action);
+      if (n == 2 )
+	printf("could not match line on any of the neighbor-patterns but babeld sent changes on a neighbour. Exiting parser %d. This is a bug that should be reported.\n", n);
       goto end;
     }
   }

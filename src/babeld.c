@@ -34,15 +34,17 @@ void babeld_parse_line(struct context *ctx, char *line) {
     {
       n = sscanf(line, "%ms neighbour %*s", &action);
       if (n == 2 )
-	printf("could not match line on any of the neighbor-patterns but babeld sent changes on a neighbour. Exiting parser %d. This is a bug that should be reported.\n", n);
+	printf("Received changes on a neighbour but could not match them on any of the neighbor-patterns. Exiting parser %d. This is a bug that should be reported.\n", n);
       goto end;
     }
   }
   struct in6_addr address;
 
   if (inet_pton(AF_INET6, address_str, &address) != 1)
-    // TODO print warning
+  {
+    printf("received garbage instead of IPv6-address, not parsing line from babeld\n");
     goto end;
+  }
 
   if (strcmp(action, "add") == 0)
     neighbor_add(ctx, &address, ifname, reach, cost);
@@ -52,7 +54,6 @@ void babeld_parse_line(struct context *ctx, char *line) {
 
   if (strcmp(action, "flush") == 0)
     neighbor_flush(ctx, &address, ifname);
-
 
 end:
   free(action);

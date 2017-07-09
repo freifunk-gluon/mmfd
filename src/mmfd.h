@@ -1,7 +1,6 @@
 #pragma once
 
 #include "vector.h"
-#include "error.h"
 
 #include <stdio.h>
 #include <stdint.h>
@@ -12,6 +11,7 @@
 
 struct context {
 	bool verbose;
+	bool debug;
 	int efd;
 	int tunfd;
 	int babelfd;
@@ -32,5 +32,3 @@ struct neighbour {
 	int reach;
 	int cost;
 };
-
-void log_verbose(struct context *ctx, const char *format, ...);

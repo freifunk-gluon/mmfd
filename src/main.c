@@ -1,6 +1,7 @@
 #include "mmfd.h"
 #include "babeld.h"
 #include "error.h"
+#include "util.h"
 
 #include <stdint.h>
 #include <stdbool.h>
@@ -357,10 +358,34 @@ void loop(struct context *ctx) {
 	free(events);
 }
 
+void usage() {
+	puts("Usage: mmfd [-h] [-v] [-d]\n");
+	puts("  -v     verbose\n");
+	puts("  -d     debug\n");
+	puts("  -h     this help\n");
+}
 
 int main(int argc, char *argv[]) {
 	struct context ctx = {};
-	ctx.verbose = true;
+
+	int c;
+	while ((c = getopt(argc, argv, "vhd")) != -1)
+		switch (c) {
+			case 'd':
+				ctx.debug = true;
+				break;
+			case 'v':
+				ctx.verbose = true;
+				break;
+			case 'h':
+				usage();
+				exit(EXIT_SUCCESS);
+			default:
+				fprintf(stderr, "Invalid parameter %c ignored.\n", c);
+		}
+
+
+
 
 	int rfd = open("/dev/urandom", O_RDONLY);
 	unsigned int seed;

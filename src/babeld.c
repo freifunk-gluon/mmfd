@@ -85,8 +85,8 @@ bool babeld_handle_in(struct context *ctx, int fd) {
 		stringp = ctx->babeld_buffer;
 		line = strsep(&stringp, "\n");
 
-		if ((ctx->verbose) && (strlen(line) > 1))
-			log_verbose(ctx, "about to parse line: %s\n", line);
+		if (strlen(line) > 1)
+			log_debug(ctx, "about to parse line: %s\n", line);
 
 		if (stringp == NULL)
 			break; // no line found
@@ -97,9 +97,10 @@ bool babeld_handle_in(struct context *ctx, int fd) {
 
 		if (ctx->babeld_buffer == NULL)
 			exit_errno("Cannot allocate buffer");
-
-		print_neighbours(ctx);
 	}
+
+	if (ctx->verbose)
+		print_neighbours(ctx);
 
 	return true;
 }

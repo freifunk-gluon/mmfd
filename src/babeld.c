@@ -19,8 +19,6 @@ void babeld_parse_line(struct context *ctx, char *line) {
 	char *ifname = NULL;
 	int reach, cost;
 
-	print_neighbours(ctx);
-
 	int n = sscanf(line, "%ms neighbour %*x address %ms if %ms reach %x rxcost %*d txcost %*d cost %d", &action, &address_str, &ifname, &reach, &cost);
 
 	if (n != 5) {
@@ -99,6 +97,8 @@ bool babeld_handle_in(struct context *ctx, int fd) {
 
 		if (ctx->babeld_buffer == NULL)
 			exit_errno("Cannot allocate buffer");
+
+		print_neighbours(ctx);
 	}
 
 	return true;

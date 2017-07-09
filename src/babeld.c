@@ -21,16 +21,13 @@ void babeld_parse_line(struct context *ctx, char *line) {
 
 	print_neighbours(ctx);
 
-	int n = sscanf(line, "%ms neighbour %*x address %ms if %ms reach %x rxcost %*d txcost %*d cost %d",
-			&action, &address_str, &ifname, &reach, &cost);
+	int n = sscanf(line, "%ms neighbour %*x address %ms if %ms reach %x rxcost %*d txcost %*d cost %d", &action, &address_str, &ifname, &reach, &cost);
 
 	if (n != 5) {
 		free(action);
 		free(address_str);
 		free(ifname);
-		n = sscanf(line, "%ms neighbour %*x address %ms if %ms "
-				"reach %x rxcost %*d txcost %*d rtt %*f rttcost %*d cost %d",
-				&action, &address_str, &ifname, &reach, &cost);
+		n = sscanf(line, "%ms neighbour %*x address %ms if %ms reach %x rxcost %*d txcost %*d rtt %*f rttcost %*d cost %d", &action, &address_str, &ifname, &reach, &cost);
 		if (n != 5) {
 			free(action);
 			free(address_str);

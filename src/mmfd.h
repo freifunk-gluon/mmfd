@@ -2,6 +2,7 @@
 
 #include "vector.h"
 
+#include <stdio.h>
 #include <stdint.h>
 #include <stdbool.h>
 #include <netinet/in.h>
@@ -10,6 +11,7 @@
 
 struct context {
 	bool verbose;
+	bool debug;
 	int efd;
 	int tunfd;
 	int babelfd;

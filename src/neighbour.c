@@ -8,7 +8,7 @@
 #include <net/if.h>
 
 void print_neighbours(struct context *ctx) {
-	puts("Neighbors:");
+	puts("neighbours:");
 
 	for (int i = 0; i < VECTOR_LEN(ctx->neighbours); i++) {
 		struct neighbour *neighbour = &VECTOR_INDEX(ctx->neighbours, i);

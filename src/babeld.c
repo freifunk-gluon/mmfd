@@ -19,8 +19,6 @@ void babeld_parse_line(struct context *ctx, char *line) {
 	char *ifname = NULL;
 	int reach, cost;
 
-	print_neighbours(ctx);
-
 	int n = sscanf(line, "%ms neighbour %*x address %ms if %ms reach %x rxcost %*d txcost %*d cost %d", &action, &address_str, &ifname, &reach, &cost);
 
 	if (n != 5) {
@@ -34,7 +32,7 @@ void babeld_parse_line(struct context *ctx, char *line) {
 			free(ifname);
 			n = sscanf(line, "%ms neighbour %*s", &action);
 			if (n == 2 ) {
-				printf("Received changes on a neighbour but could not match them on any of the neighbour-patterns. Exiting parser %d. This is a bug that should be reported.\n", n);
+				log_verbose(ctx, "Received changes on a neighbour but could not match them on any of the neighbour-patterns. Exiting parser %d. This is a bug that should be reported.\n", n);
 			}
 
 			goto end;
@@ -43,7 +41,7 @@ void babeld_parse_line(struct context *ctx, char *line) {
 	struct in6_addr address;
 
 	if (inet_pton(AF_INET6, address_str, &address) != 1) {
-		printf("received garbage instead of IPv6-address, not parsing line from babeld\n");
+		log_verbose(ctx, "received garbage instead of IPv6-address, not parsing line from babeld\n");
 		goto end;
 	}
 
@@ -87,8 +85,8 @@ bool babeld_handle_in(struct context *ctx, int fd) {
 		stringp = ctx->babeld_buffer;
 		line = strsep(&stringp, "\n");
 
-		if ((ctx->verbose) && (strlen(line) > 1))
-			printf("about to parse line: %s\n", line);
+		if (strlen(line) > 1)
+			log_debug(ctx, "about to parse line: %s\n", line);
 
 		if (stringp == NULL)
 			break; // no line found
@@ -100,6 +98,9 @@ bool babeld_handle_in(struct context *ctx, int fd) {
 		if (ctx->babeld_buffer == NULL)
 			exit_errno("Cannot allocate buffer");
 	}
+
+	if (ctx->verbose)
+		print_neighbours(ctx);
 
 	return true;
 }

@@ -23,16 +23,6 @@ static void handle_udp_packet(struct context *ctx, struct header *hdr, uint8_t *
 
 #define FMT_NOUNCE "0x%08x"
 
-void log_verbose(struct context *ctx, const char *format, ...) {
-	if (!ctx->verbose)
-		return;
-
-	va_list args;
-	va_start(args, format);
-	vfprintf(stderr, format, args);
-	va_end(args);
-}
-
 int udp_open() {
 	int fd = socket(PF_INET6, SOCK_DGRAM | SOCK_NONBLOCK, 0);
 

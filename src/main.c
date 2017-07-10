@@ -359,10 +359,10 @@ void loop(struct context *ctx) {
 }
 
 void usage() {
-	puts("Usage: mmfd [-h] [-v] [-d]\n");
-	puts("  -v     verbose\n");
-	puts("  -d     debug\n");
-	puts("  -h     this help\n");
+	puts("Usage: mmfd [-h] [-v] [-d]");
+	puts("  -v     verbose");
+	puts("  -d     debug");
+	puts("  -h     this help");
 }
 
 int main(int argc, char *argv[]) {

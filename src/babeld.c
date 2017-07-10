@@ -5,6 +5,7 @@
 #include "babeld.h"
 #include "neighbour.h"
 #include "error.h"
+#include "util.h"
 
 #include <unistd.h>
 #include <arpa/inet.h>

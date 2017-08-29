@@ -20,9 +20,9 @@
 #define MTU 1280
 
 static void change_fd(int efd, int fd, int type, uint32_t events);
-static void handle_udp_packet(struct context *ctx, struct header *hdr, uint8_t *packet, ssize_t len);
+static void handle_udp_packet(struct context *ctx,  struct sockaddr_in6 *src_addr, struct header *hdr, uint8_t *packet, ssize_t len);
 
-#define FMT_NOUNCE "0x%08x"
+#define FMT_NONCE "0x%08x"
 
 int udp_open() {
 	int fd = socket(PF_INET6, SOCK_DGRAM | SOCK_NONBLOCK, 0);
@@ -101,10 +101,10 @@ error:
 	return -1;
 }
 
-bool forward_packet(struct context *ctx, uint8_t *packet, ssize_t len, uint32_t nonce) {
+bool forward_packet(struct context *ctx, uint8_t *packet, ssize_t len, uint32_t nonce, struct sockaddr_in6 *src_addr) {
 	for (int i = 0; i < VECTOR_LEN(ctx->seen); i++) {
 		if (VECTOR_INDEX(ctx->seen, i) == nonce) {
-			log_verbose(ctx, "Dropped packet with already seen nounce " FMT_NOUNCE "\n", nonce);
+			log_verbose(ctx, "Dropped packet with already seen nonce " FMT_NONCE "\n", nonce);
 			return false;
 		}
 	}
@@ -131,43 +131,54 @@ bool forward_packet(struct context *ctx, uint8_t *packet, ssize_t len, uint32_t 
 
 	// prepare some log output, if necessary
 	char dest_ip_str[INET6_ADDRSTRLEN] = {};
+	char src_ip_str[INET6_ADDRSTRLEN] = {};
 	if (ctx->verbose) {
 		struct ipv6hdr *hdr = (struct ipv6hdr*)packet;
 		inet_ntop(AF_INET6, &hdr->daddr, dest_ip_str, INET6_ADDRSTRLEN);
+		src_ip_str[0]='\0';
+		if (src_addr)
+			inet_ntop(AF_INET6, &(src_addr->sin6_addr), src_ip_str, INET6_ADDRSTRLEN);
 	}
 
 	if (VECTOR_LEN(ctx->neighbours) == 0) {
 		log_verbose(ctx, "No neighbour found. Dropping packet with "
-				"destaddr=%s, nounce=" FMT_NOUNCE ".\n", dest_ip_str, nonce);
+				"destaddr=%s, nonce=" FMT_NONCE ".\n", dest_ip_str, nonce);
 		return true;
 	}
 
 	for (int i = 0; i < VECTOR_LEN(ctx->neighbours); i++) {
 		struct neighbour *neighbour = &VECTOR_INDEX(ctx->neighbours, i);
 
-		struct msghdr msg = {
-			.msg_name = &neighbour->address,
-			.msg_namelen = sizeof(struct sockaddr_in6),
-			.msg_iov = iov,
-			.msg_iovlen = 2,
-		};
-
-		if (ctx->verbose) {
-			// convert information about the neigh to strings
-			char neigh_ip_str[INET6_ADDRSTRLEN] = {};
-			char neigh_ifname[IFNAMSIZ] = {};
-			inet_ntop(AF_INET6, &neighbour->address.sin6_addr, neigh_ip_str, INET6_ADDRSTRLEN);
-			if_indextoname(neighbour->address.sin6_scope_id, neigh_ifname);
-
-			log_verbose(ctx, "Forwarding packet with destaddr=%s, "
-					"nounce=" FMT_NOUNCE " to %s%%%s.\n",
-					dest_ip_str, nonce, neigh_ip_str, neigh_ifname);
+		int forwardmessage=1;
+		if (src_addr) {
+			forwardmessage = memcmp(src_addr,&(neighbour->address),sizeof(neighbour->address));
 		}
-		sendmsg(ctx->udpfd, &msg, 0);
+
+		if (forwardmessage) {
+			struct msghdr msg = {
+				.msg_name = &neighbour->address,
+				.msg_namelen = sizeof(struct sockaddr_in6),
+				.msg_iov = iov,
+				.msg_iovlen = 2,
+			};
+
+			if (ctx->verbose) {
+				// convert information about the neigh to strings
+				char neigh_ip_str[INET6_ADDRSTRLEN] = {};
+				char neigh_ifname[IFNAMSIZ] = {};
+				inet_ntop(AF_INET6, &neighbour->address.sin6_addr, neigh_ip_str, INET6_ADDRSTRLEN);
+				if_indextoname(neighbour->address.sin6_scope_id, neigh_ifname);
+
+				log_verbose(ctx, "Forwarding packet from %s with destaddr=%s, "
+						"nonce=" FMT_NONCE " to %s%%%s.\n",
+						src_ip_str, dest_ip_str, nonce, neigh_ip_str, neigh_ifname);
+			}
+			sendmsg(ctx->udpfd, &msg, 0);
+		}
 	}
 	return true;
-
 }
+
 void udp_handle_in(struct context *ctx, int fd) {
 	while (1) {
 		struct header hdr;
@@ -207,19 +218,19 @@ void udp_handle_in(struct context *ctx, int fd) {
 		else if (message.msg_flags & MSG_TRUNC)
 			printf("Message too long for buffer\n");
 		else
-			handle_udp_packet(ctx, &hdr, buffer, count - sizeof(hdr));
+			handle_udp_packet(ctx, (struct sockaddr_in6 *)&src_addr, &hdr, buffer, count - sizeof(hdr));
 	}
 }
 
-void handle_udp_packet(struct context *ctx, struct header *hdr, uint8_t *packet, ssize_t len) {
-	if (forward_packet(ctx, packet, len, hdr->nonce))
+void handle_udp_packet(struct context *ctx,  struct sockaddr_in6 *src_addr, struct header *hdr, uint8_t *packet, ssize_t len) {
+	if (forward_packet(ctx, packet, len, hdr->nonce, src_addr))
 		write(ctx->tunfd, packet, len);
 }
 
 void handle_packet(struct context *ctx, uint8_t *packet, ssize_t len) {
 	uint32_t nonce = rand();
 
-	forward_packet(ctx, packet, len, nonce);
+	forward_packet(ctx, packet, len, nonce, NULL);
 }
 
 void tun_handle_in(struct context *ctx, int fd) {

@@ -2,6 +2,7 @@
 #include "babeld.h"
 #include "error.h"
 #include "util.h"
+#include "neighbour.h"
 
 #include <stdint.h>
 #include <stdbool.h>
@@ -346,8 +347,7 @@ void loop(struct context *ctx) {
 					read(ctx->babeld_reconnect_tfd, &nEvents, sizeof(nEvents));
 					printf("Connecting to babeld\n");
 
-					// TODO flush neighbours here
-
+					flush_neighbours(ctx);
 					if (ctx->babeld_buffer != NULL)
 						free(ctx->babeld_buffer);
 

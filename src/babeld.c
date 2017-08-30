@@ -23,7 +23,7 @@ void babeld_parse_line(char *line, void *ctx_p) {
 		else if (!strncmp(bn.action, "change", 6))
 			neighbour_change(ctx, &(bn.address), bn.ifname, bn.reach, bn.cost);
 		else if (!strncmp(bn.action, "flush", 5))
-			neighbour_flush(ctx, &(bn.address), bn.ifname);
+			neighbour_remove(ctx, &(bn.address), bn.ifname);
 
 		babelhelper_babelneighbour_free(&bn);
 	}
@@ -43,7 +43,7 @@ int babeld_connect(int port) {
 	int fd = babelhelper_babel_connect(port);
 
 	// read and ignore babel socket header-data
-//	input_pump(fd, NULL, 1, NULL);
+	input_pump(fd, NULL, 1, NULL);
 
 	// TODO: this is not a good idea? We could receive EAGAIN!
 	if (send(fd, "monitor\n", 8, 0) != 8) {

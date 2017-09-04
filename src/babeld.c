@@ -25,18 +25,16 @@ void babeld_parse_line(char *line, void *ctx_p) {
 		else if (!strncmp(bn.action, "flush", 5))
 			neighbour_remove(ctx, &(bn.address), bn.ifname);
 
+		if (ctx->verbose)
+			print_neighbours(ctx);
+
 		babelhelper_babelneighbour_free(&bn);
 	}
 
 }
 
 bool babeld_handle_in(struct context *ctx, int fd) {
-	babelhelper_input_pump(fd, (void*)ctx, babeld_parse_line);
-
-	if (ctx->verbose)
-		print_neighbours(ctx);
-
-	return true;
+	return babelhelper_input_pump(fd, (void*)ctx, babeld_parse_line);
 }
 
 int babeld_connect(int port) {

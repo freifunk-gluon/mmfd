@@ -45,10 +45,7 @@ int babeld_connect(int port) {
 	// read and ignore babel socket header-data
 	input_pump(fd, NULL, 1, NULL);
 
-	// TODO: this is not a good idea? We could receive EAGAIN!
-	if (send(fd, "monitor\n", 8, 0) != 8) {
-		exit_errno("Error while subscribing to babel events");
-	}
+	babelhelper_sendcommand(fd, "monitor\n");
 
 	return fd;
 }

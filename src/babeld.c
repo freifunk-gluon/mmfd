@@ -31,7 +31,7 @@ void babeld_parse_line(char *line, void *ctx_p) {
 }
 
 bool babeld_handle_in(struct context *ctx, int fd) {
-	input_pump(fd,  (void*)ctx, 0, babeld_parse_line);
+	babelhelper_input_pump(fd, (void*)ctx, babeld_parse_line);
 
 	if (ctx->verbose)
 		print_neighbours(ctx);
@@ -43,7 +43,7 @@ int babeld_connect(int port) {
 	int fd = babelhelper_babel_connect(port);
 
 	// read and ignore babel socket header-data
-	input_pump(fd, NULL, 1, NULL);
+	babelhelper_input_pump(fd, NULL, NULL);
 
 	babelhelper_sendcommand(fd, "monitor\n");
 

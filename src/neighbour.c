@@ -48,7 +48,7 @@ struct neighbour *add_neighbour(struct context *ctx, struct in6_addr *address, c
 	return &VECTOR_INDEX(ctx->neighbours, VECTOR_LEN(ctx->neighbours) - 1);
 }
 
-void remove_neighbour(struct context *ctx, struct in6_addr *address, char *ifname) {
+void neighbour_remove(struct context *ctx, struct in6_addr *address, char *ifname) {
 	for (int i = 0; i < VECTOR_LEN(ctx->neighbours); i++) {
 		struct neighbour *neighbour = &VECTOR_INDEX(ctx->neighbours, i);
 
@@ -87,6 +87,11 @@ void neighbour_change(struct context *ctx, struct in6_addr *address, char *ifnam
 	neighbour->cost = cost;
 }
 
-void neighbour_flush(struct context *ctx, struct in6_addr *address, char *ifname) {
-	remove_neighbour(ctx, address, ifname);
+void flush_neighbours(struct context *ctx) {
+	for (int i = 0; i < VECTOR_LEN(ctx->neighbours); i++) {
+		struct neighbour *neighbour = &VECTOR_INDEX(ctx->neighbours, i);
+
+		free(neighbour->ifname);
+		VECTOR_DELETE(ctx->neighbours, i);
+	}
 }

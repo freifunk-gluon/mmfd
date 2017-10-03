@@ -11,12 +11,12 @@
 
 void babeld_parse_line(char *line, void *ctx_p) {
 	struct context *ctx = (struct context*) ctx_p;
-	struct babelneighbour bn;
+	struct babelneighbour bn = { };
 
 	if (ctx->debug)
 		printf("parsing line: %s\n", line);
 
-	if (! babelhelper_get_neighbour(&bn, line)) {
+	if (babelhelper_get_neighbour(&bn, line)) {
 
 		if (!strncmp(bn.action, "add", 3))
 			neighbour_add(ctx, &(bn.address), bn.ifname, bn.reach, bn.cost);

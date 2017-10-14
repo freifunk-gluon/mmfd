@@ -28,7 +28,7 @@ void babeld_parse_line(char *line, void *ctx_p) {
 		if (ctx->verbose)
 			print_neighbours(ctx);
 
-		babelhelper_babelneighbour_free(&bn);
+		babelhelper_babelneighbour_free_members(&bn);
 	}
 
 }

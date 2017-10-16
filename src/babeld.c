@@ -38,12 +38,22 @@ bool babeld_handle_in(struct context *ctx, int fd) {
 }
 
 int babeld_connect(int port) {
-	int fd = babelhelper_babel_connect(port);
+	int fd=-1;
 
-	// read and ignore babel socket header-data
+	do {
+		fd = babelhelper_babel_connect(port);
+		if (fd < 0)
+			fprintf(stderr, "connecting to babel socket failed. Retrying.\n");
+	} while (fd < 0);
+
+	// receive and ignore babel header
 	babelhelper_input_pump(fd, NULL, NULL);
 
-	babelhelper_sendcommand(fd, "monitor\n");
+	int amount = 0;
+	while (amount != 8 ) {
+		printf(stderr, "sending monitor command to babel socket\n");
+		amount = babelhelper_sendcommand(fd, "monitor\n");
+	}
 
 	return fd;
 }

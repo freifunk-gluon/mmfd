@@ -9,9 +9,13 @@
 #include <netinet/in.h>
 #include <libbabelhelper/babelhelper.h>
 
-void babeld_parse_line(char *line, void *ctx_p) {
+bool babeld_parse_line(char *line, void *ctx_p) {
 	struct context *ctx = (struct context*) ctx_p;
 	struct babelneighbour bn = { };
+
+	if (!strncmp(line, "ok", 2)) {
+		return false;
+	}
 
 	if (ctx->debug)
 		printf("parsing line: %s\n", line);
@@ -30,7 +34,7 @@ void babeld_parse_line(char *line, void *ctx_p) {
 
 		babelhelper_babelneighbour_free_members(&bn);
 	}
-
+	return true;
 }
 
 bool babeld_handle_in(struct context *ctx, int fd) {
@@ -43,15 +47,15 @@ int babeld_connect(int port) {
 	do {
 		fd = babelhelper_babel_connect(port);
 		if (fd < 0)
-			fprintf(stderr, "connecting to babel socket failed. Retrying.\n");
+			fprintf(stderr, "Connecting to babel socket failed. Retrying.\n");
 	} while (fd < 0);
 
-	// receive and ignore babel header
-	babelhelper_input_pump(fd, NULL, NULL);
+	// read and ignore babel socket header-data
+	babelhelper_input_pump(fd, NULL, babelhelper_discard_response);
 
 	int amount = 0;
 	while (amount != 8 ) {
-		printf(stderr, "sending monitor command to babel socket\n");
+		printf(stderr, "Sending monitor command to babel socket\n");
 		amount = babelhelper_sendcommand(fd, "monitor\n");
 	}
 

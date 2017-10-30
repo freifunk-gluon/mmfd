@@ -9,9 +9,13 @@
 #include <netinet/in.h>
 #include <libbabelhelper/babelhelper.h>
 
-void babeld_parse_line(char *line, void *ctx_p) {
+bool babeld_parse_line(char *line, void *ctx_p) {
 	struct context *ctx = (struct context*) ctx_p;
 	struct babelneighbour bn = { };
+
+	if (!strncmp(line, "ok", 2)) {
+		return false;
+	}
 
 	if (ctx->debug)
 		printf("parsing line: %s\n", line);
@@ -28,9 +32,9 @@ void babeld_parse_line(char *line, void *ctx_p) {
 		if (ctx->verbose)
 			print_neighbours(ctx);
 
-		babelhelper_babelneighbour_free(&bn);
+		babelhelper_babelneighbour_free_members(&bn);
 	}
-
+	return true;
 }
 
 bool babeld_handle_in(struct context *ctx, int fd) {
@@ -38,12 +42,22 @@ bool babeld_handle_in(struct context *ctx, int fd) {
 }
 
 int babeld_connect(int port) {
-	int fd = babelhelper_babel_connect(port);
+	int fd=-1;
+
+	do {
+		fd = babelhelper_babel_connect(port);
+		if (fd < 0)
+			fprintf(stderr, "Connecting to babel socket failed. Retrying.\n");
+	} while (fd < 0);
 
 	// read and ignore babel socket header-data
-	babelhelper_input_pump(fd, NULL, NULL);
+	babelhelper_input_pump(fd, NULL, babelhelper_discard_response);
 
-	babelhelper_sendcommand(fd, "monitor\n");
+	int amount = 0;
+	while (amount != 8 ) {
+		printf(stderr, "Sending monitor command to babel socket\n");
+		amount = babelhelper_sendcommand(fd, "monitor\n");
+	}
 
 	return fd;
 }

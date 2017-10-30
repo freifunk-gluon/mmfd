@@ -55,7 +55,7 @@ int babeld_connect(int port) {
 
 	int amount = 0;
 	while (amount != 8 ) {
-		printf(stderr, "Sending monitor command to babel socket\n");
+		fprintf(stderr, "Sending monitor command to babel socket\n");
 		amount = babelhelper_sendcommand(fd, "monitor\n");
 	}
 

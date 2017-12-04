@@ -345,15 +345,21 @@ void loop(struct context *ctx) {
 				if (events[i].events & EPOLLIN) {
 					unsigned long long nEvents;
 					read(ctx->babeld_reconnect_tfd, &nEvents, sizeof(nEvents));
-					printf("Connecting to babeld\n");
+
+					if (ctx->debug)
+						printf("Connecting to babeld\n");
 
 					flush_neighbours(ctx);
 					if (ctx->babeld_buffer != NULL)
 						free(ctx->babeld_buffer);
 
 					ctx->babeld_buffer = NULL;
-					ctx->babelfd = babeld_connect(33123);
+
+					ctx->babelfd = babeld_connect(ctx, 33123);
+
 					change_fd(ctx->efd, ctx->babelfd, EPOLL_CTL_ADD, EPOLLIN);
+					if (ctx->debug)
+						printf("Parsed babel data.\n");
 				}
 			} else if (ctx->babelfd == events[i].data.fd) {
 				if ((events[i].events & EPOLLERR) || (events[i].events & EPOLLHUP)) {

@@ -38,11 +38,16 @@ bool babeld_parse_line(char *line, void *ctx_p) {
 }
 
 bool babeld_handle_in(struct context *ctx, int fd) {
-	return babelhelper_input_pump(fd, (void*)ctx, babeld_parse_line);
+	struct babelhelper_ctx bhelper_ctx = {};
+	bhelper_ctx.debug=ctx->debug;
+	return babelhelper_input_pump(&bhelper_ctx, fd, (void*)ctx, babeld_parse_line);
 }
 
-int babeld_connect(int port) {
+int babeld_connect(struct context *ctx, int port) {
 	int fd=-1;
+
+	struct babelhelper_ctx bhelper_ctx = {};
+	bhelper_ctx.debug=ctx->debug;
 
 	do {
 		fd = babelhelper_babel_connect(port);
@@ -51,11 +56,12 @@ int babeld_connect(int port) {
 	} while (fd < 0);
 
 	// read and ignore babel socket header-data
-	babelhelper_input_pump(fd, NULL, babelhelper_discard_response);
+	babelhelper_input_pump(&bhelper_ctx, fd, NULL, babelhelper_discard_response);
 
 	int amount = 0;
 	while (amount != 8 ) {
-		fprintf(stderr, "Sending monitor command to babel socket\n");
+		if (ctx->debug)
+			fprintf(stderr, "Sending monitor command to babel socket\n");
 		amount = babelhelper_sendcommand(fd, "monitor\n");
 	}
 

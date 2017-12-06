@@ -5,4 +5,4 @@
 #include <stdbool.h>
 
 bool babeld_handle_in(struct context *ctx, int fd);
-int babeld_connect(int port);
+int babeld_connect(struct context *ctx, int port);

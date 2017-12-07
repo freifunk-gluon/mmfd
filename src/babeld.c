@@ -62,7 +62,7 @@ int babeld_connect(struct context *ctx, int port) {
 	while (amount != 8 ) {
 		if (ctx->debug)
 			fprintf(stderr, "Sending monitor command to babel socket\n");
-		amount = babelhelper_sendcommand(fd, "monitor\n");
+		amount = babelhelper_sendcommand(&bhelper_ctx, fd, "monitor\n");
 	}
 
 	return fd;

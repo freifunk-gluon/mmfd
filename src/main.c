@@ -87,6 +87,12 @@ int tun_open(const char *ifname, uint16_t mtu, const char *dev_name) {
 		}
 	}
 
+	ifr.ifr_flags = IFF_UP | IFF_RUNNING| IFF_MULTICAST | IFF_NOARP | IFF_POINTOPOINT;
+	if (ioctl(ctl_sock, SIOCSIFFLAGS, &ifr) < 0 ) {
+		puts("unable to set TUN/TAP interface UP: SIOCSIFFLAGS ioctl failed");
+		goto error;
+	}
+
 	if (close(ctl_sock))
 		puts("close");
 

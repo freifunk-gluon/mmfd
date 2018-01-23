@@ -43,14 +43,14 @@ bool babeld_handle_in(struct context *ctx, int fd) {
 	return babelhelper_input_pump(&bhelper_ctx, fd, (void*)ctx, babeld_parse_line);
 }
 
-int babeld_connect(struct context *ctx, int port) {
+int babeld_connect(struct context *ctx) {
 	int fd=-1;
 
 	struct babelhelper_ctx bhelper_ctx = {};
 	bhelper_ctx.debug=ctx->debug;
 
 	do {
-		fd = babelhelper_babel_connect(port);
+		fd = babelhelper_babel_connect(ctx->babelport);
 		if (fd < 0)
 			fprintf(stderr, "Connecting to babel socket failed. Retrying.\n");
 	} while (fd < 0);

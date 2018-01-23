@@ -14,6 +14,7 @@ struct context {
 	bool debug;
 	int efd;
 	int tunfd;
+	int babelport;
 	int babelfd;
 	int babeld_reconnect_tfd;
 	int udpfd;

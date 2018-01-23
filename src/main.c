@@ -361,7 +361,7 @@ void loop(struct context *ctx) {
 
 					ctx->babeld_buffer = NULL;
 
-					ctx->babelfd = babeld_connect(ctx, 33123);
+					ctx->babelfd = babeld_connect(ctx);
 
 					change_fd(ctx->efd, ctx->babelfd, EPOLL_CTL_ADD, EPOLLIN);
 					if (ctx->debug)
@@ -384,18 +384,23 @@ void loop(struct context *ctx) {
 void usage() {
 	puts("Usage: mmfd [-h] [-v] [-d]");
 	puts("  -v     verbose");
+	puts("  -p     port of the babeld-socket, default: 33123");
 	puts("  -d     debug");
 	puts("  -h     this help");
 }
 
 int main(int argc, char *argv[]) {
 	struct context ctx = {};
+	ctx.babelport = 33123;
 
 	int c;
 	while ((c = getopt(argc, argv, "vhd")) != -1)
 		switch (c) {
 			case 'd':
 				ctx.debug = true;
+				break;
+			case 'p':
+				ctx.babelport = atoi(optarg);
 				break;
 			case 'v':
 				ctx.verbose = true;

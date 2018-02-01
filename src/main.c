@@ -386,15 +386,17 @@ void usage() {
 	puts("  -v     verbose");
 	puts("  -p     port of the babeld-socket, default: 33123");
 	puts("  -d     debug");
+	puts("  -D     name of the mmfd device");
 	puts("  -h     this help");
 }
 
 int main(int argc, char *argv[]) {
 	struct context ctx = {};
 	ctx.babelport = 33123;
+	char mmfd_device[IFNAMSIZ] = "mmfd0";
 
 	int c;
-	while ((c = getopt(argc, argv, "vhd")) != -1)
+	while ((c = getopt(argc, argv, "vhdp:D:")) != -1)
 		switch (c) {
 			case 'd':
 				ctx.debug = true;
@@ -408,12 +410,12 @@ int main(int argc, char *argv[]) {
 			case 'h':
 				usage();
 				exit(EXIT_SUCCESS);
+			case 'D':
+				snprintf(mmfd_device, IFNAMSIZ, "%s", optarg);
+				break;
 			default:
 				fprintf(stderr, "Invalid parameter %c ignored.\n", c);
 		}
-
-
-
 
 	int rfd = open("/dev/urandom", O_RDONLY);
 	unsigned int seed;
@@ -422,7 +424,7 @@ int main(int argc, char *argv[]) {
 	srand(seed);
 
 	ctx.udpfd = udp_open();
-	ctx.tunfd = tun_open("mmfd0", MTU, "/dev/net/tun");
+	ctx.tunfd = tun_open(mmfd_device, MTU, "/dev/net/tun");
 
 	if (ctx.tunfd == -1)
 		exit_error("Can not create tun device");

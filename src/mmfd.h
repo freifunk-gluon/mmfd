@@ -12,10 +12,12 @@
 struct context {
 	bool verbose;
 	bool debug;
+	bool bind;
 	int efd;
 	int tunfd;
 	int babelport;
 	int babelfd;
+	VECTOR(char *) interfaces;
 	int babeld_reconnect_tfd;
 	int udpfd;
 	char *babeld_buffer;

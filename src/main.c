@@ -22,6 +22,7 @@
 
 static void change_fd(int efd, int fd, int type, uint32_t events);
 static void handle_udp_packet(struct context *ctx,  struct sockaddr_in6 *src_addr, struct header *hdr, uint8_t *packet, ssize_t len);
+struct context ctx = {};
 
 #define FMT_NONCE "0x%08x"
 
@@ -30,6 +31,14 @@ int udp_open() {
 
 	if (fd < 0)
 		exit_error("creating socket");
+
+	if (ctx.bind) {
+		for (int i=0;i<VECTOR_LEN(ctx.interfaces);i++) {
+			if(setsockopt(fd, SOL_SOCKET, SO_BINDTODEVICE, VECTOR_INDEX(ctx.interfaces, i), strnlen(VECTOR_INDEX(ctx.interfaces, i), IFNAMSIZ-1))) {
+				exit_error("error on setsockopt");
+			}
+		}
+	}
 
 	struct sockaddr_in6 server_addr = {};
 
@@ -382,21 +391,22 @@ void loop(struct context *ctx) {
 }
 
 void usage() {
-	puts("Usage: mmfd [-h] [-v] [-d]");
+	puts("Usage: mmfd [-h] [-v] [-d] [-D <devicename>] [-p <port>] [-i <mesh-device>] [-i <mesh-device>]");
 	puts("  -v     verbose");
-	puts("  -p     port of the babeld-socket, default: 33123");
 	puts("  -d     debug");
 	puts("  -D     name of the mmfd device");
+	puts("  -p     port of the babeld-socket, default: 33123");
+	puts("  -i     bind to interface, may be specified multiple times");
 	puts("  -h     this help");
 }
 
 int main(int argc, char *argv[]) {
-	struct context ctx = {};
+	int c;
 	ctx.babelport = 33123;
 	char mmfd_device[IFNAMSIZ] = "mmfd0";
+	ctx.bind = false;
 
-	int c;
-	while ((c = getopt(argc, argv, "vhdp:D:")) != -1)
+	while ((c = getopt(argc, argv, "vhdp:D:i:")) != -1)
 		switch (c) {
 			case 'd':
 				ctx.debug = true;
@@ -412,6 +422,15 @@ int main(int argc, char *argv[]) {
 				exit(EXIT_SUCCESS);
 			case 'D':
 				snprintf(mmfd_device, IFNAMSIZ, "%s", optarg);
+				break;
+			case 'i':
+				if (if_nametoindex(optarg)) {
+					VECTOR_ADD(ctx.interfaces, optarg);
+					ctx.bind=true;
+				}
+				else {
+					fprintf(stderr, "Could not find device %s. ignoring.\n", optarg);
+				}
 				break;
 			default:
 				fprintf(stderr, "Invalid parameter %c ignored.\n", c);

@@ -18,23 +18,26 @@ bool babeld_parse_line(char *line, void *ctx_p) {
 	}
 
 	if (ctx->debug)
-		printf("parsing line: %s\n", line);
+		printf("working on line: %s\n %s\n %s\n%s\n", line, &line[4], &line[7], &line[6]);
 
-	if ( ! strncmp("ne", &line[4], 2) || // add neighbour
-	     ! strncmp ("ne", &line[7], 2) || // change neighbour
-	     ! strncmp ("ne", &line[6], 2) // flush neighbour
-	   )
-	if (babelhelper_get_neighbour(&bn, line)) {
-
-		if (!strncmp(bn.action, "add", 3) ||!strncmp(bn.action, "change", 6)) 
-			neighbour_change(ctx, &(bn.address), bn.ifname, bn.reach, bn.cost);
-		else if (!strncmp(bn.action, "flush", 5))
-			neighbour_remove(ctx, &(bn.address), bn.ifname);
-
+	if ( 0 == strncmp("ne", &line[4], 2) || // add neighbour
+	     0 == strncmp ("ne", &line[7], 2) || // change neighbour
+	     0 == strncmp ("ne", &line[6], 2) // flush neighbour
+	   ) {
 		if (ctx->verbose)
-			print_neighbours(ctx);
+			printf("parsing line: %s\n", line);
+		if (babelhelper_get_neighbour(&bn, line)) {
 
-		babelhelper_babelneighbour_free_members(&bn);
+			if (!strncmp(bn.action, "add", 3) ||!strncmp(bn.action, "change", 6)) 
+				neighbour_change(ctx, &(bn.address), bn.ifname, bn.reach, bn.cost);
+			else if (!strncmp(bn.action, "flush", 5))
+				neighbour_remove(ctx, &(bn.address), bn.ifname);
+
+			if (ctx->verbose)
+				print_neighbours(ctx);
+
+			babelhelper_babelneighbour_free_members(&bn);
+		}
 	}
 	return true;
 }

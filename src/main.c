@@ -255,6 +255,7 @@ void tun_handle_in(struct context *ctx, int fd) {
 
 	while (1) {
 		count = read(fd, buf, sizeof buf);
+		printf("reading buffer %i %s\n", count, buf);
 
 		if (count == -1) {
 			/* If errno == EAGAIN, that means we have read all
@@ -267,8 +268,8 @@ void tun_handle_in(struct context *ctx, int fd) {
 			break;
 		}
 
-		if (count < 40)
-			continue;
+//		if (count < 40) // ipv6 header has 40 bytes
+//			continue;
 
 		struct ipv6hdr *hdr = (struct ipv6hdr*)buf;
 

@@ -26,9 +26,7 @@ bool babeld_parse_line(char *line, void *ctx_p) {
 	   )
 	if (babelhelper_get_neighbour(&bn, line)) {
 
-		if (!strncmp(bn.action, "add", 3))
-			neighbour_add(ctx, &(bn.address), bn.ifname, bn.reach, bn.cost);
-		else if (!strncmp(bn.action, "change", 6))
+		if (!strncmp(bn.action, "add", 3) ||!strncmp(bn.action, "change", 6)) 
 			neighbour_change(ctx, &(bn.address), bn.ifname, bn.reach, bn.cost);
 		else if (!strncmp(bn.action, "flush", 5))
 			neighbour_remove(ctx, &(bn.address), bn.ifname);

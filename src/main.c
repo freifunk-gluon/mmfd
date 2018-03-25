@@ -125,7 +125,7 @@ bool forward_packet(struct context *ctx, uint8_t *packet, ssize_t len, uint32_t 
 		}
 	}
 
-	if (VECTOR_LEN(ctx->seen) > 2000)
+	while (VECTOR_LEN(ctx->seen) > 2000)
 		VECTOR_DELETE(ctx->seen, 0);
 
 	VECTOR_ADD(ctx->seen, nonce);
@@ -254,7 +254,7 @@ void tun_handle_in(struct context *ctx, int fd) {
 	uint8_t buf[MTU];
 
 	while (1) {
-		count = read(fd, buf, sizeof buf);
+		count = read(fd, buf, MTU);
 		printf("reading buffer %i %s\n", count, buf);
 
 		if (count == -1) {

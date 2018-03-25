@@ -20,6 +20,10 @@ bool babeld_parse_line(char *line, void *ctx_p) {
 	if (ctx->debug)
 		printf("parsing line: %s\n", line);
 
+	if ( ! strncmp("ne", &line[4], 2) || // add neighbour
+	     ! strncmp ("ne", &line[7], 2) || // change neighbour
+	     ! strncmp ("ne", &line[6], 2) // flush neighbour
+	   )
 	if (babelhelper_get_neighbour(&bn, line)) {
 
 		if (!strncmp(bn.action, "add", 3))

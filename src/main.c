@@ -157,8 +157,7 @@ bool forward_packet(struct context *ctx, uint8_t *packet, ssize_t len, uint32_t 
 	}
 
 	if (VECTOR_LEN(ctx->neighbours) == 0) {
-		log_verbose(ctx, "No neighbour found. Dropping packet with "
-				"destaddr=%s, nonce=" FMT_NONCE ".\n", dest_ip_str, nonce);
+		log_verbose(ctx, "No neighbour found. Dropping packet with destaddr=%s, nonce=" FMT_NONCE ".\n", dest_ip_str, nonce);
 		return true;
 	}
 

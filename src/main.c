@@ -347,7 +347,9 @@ void loop(struct context *ctx) {
 	events = calloc(maxevents, sizeof(struct epoll_event));
 
 	while (1) {
-		int n = epoll_wait(ctx->efd, events, maxevents, -1);
+		int n = epoll_wait(ctx->efd, events, maxevents, 300);
+		if (n == 0 && ctx->verbose)
+			print_neighbours(ctx);
 
 		for(int i = 0; i < n; i++) {
 			if (ctx->udpfd == events[i].data.fd) {

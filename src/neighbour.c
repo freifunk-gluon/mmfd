@@ -53,6 +53,7 @@ void neighbour_remove(struct context *ctx, struct in6_addr *address, char *ifnam
 		struct neighbour *neighbour = &VECTOR_INDEX(ctx->neighbours, i);
 
 		if (cmp_neighbour(neighbour, address, ifname)) {
+
 			free(neighbour->ifname);
 			VECTOR_DELETE(ctx->neighbours, i);
 			break;

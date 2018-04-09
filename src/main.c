@@ -26,6 +26,20 @@ struct context ctx = {};
 
 #define FMT_NONCE "0x%08x"
 
+void settimer(int sec, int *fd) {
+	struct itimerspec ts;
+	ts.it_interval.tv_sec = sec;
+	ts.it_interval.tv_nsec = 0;
+	ts.it_value.tv_sec = sec;
+	ts.it_value.tv_nsec = 0;
+
+	if (timerfd_settime(*fd, 0, &ts, NULL) < 0) {
+		perror("could not set timer interval\n");
+		close(*fd);
+		exit_error("could not set timer, exiting");
+	}
+}
+
 int udp_open() {
 	int fd = socket(PF_INET6, SOCK_DGRAM | SOCK_NONBLOCK, 0);
 
@@ -341,20 +355,27 @@ void loop(struct context *ctx) {
 	change_fd(ctx->efd, ctx->tunfd, EPOLL_CTL_ADD, EPOLLIN | EPOLLET);
 	change_fd(ctx->efd, ctx->babeld_reconnect_tfd, EPOLL_CTL_ADD, EPOLLIN);
 
+	if (ctx->timerfd > 0)
+		change_fd(ctx->efd, ctx->timerfd, EPOLL_CTL_ADD, EPOLLIN);
+
 	int maxevents = 64;
 	struct epoll_event *events;
-
 	events = calloc(maxevents, sizeof(struct epoll_event));
 
 	while (1) {
-		int n = epoll_wait(ctx->efd, events, maxevents, 300);
-		if (n == 0 && ctx->verbose)
-			print_neighbours(ctx);
-
+		if (ctx->debug)
+			printf("epoll_wait:\n");
+		int n = epoll_wait(ctx->efd, events, maxevents, -1);
 		for(int i = 0; i < n; i++) {
 			if (ctx->udpfd == events[i].data.fd) {
 				if (events[i].events & EPOLLIN)
 					udp_handle_in(ctx, events[i].data.fd);
+			} else if (ctx->timerfd >0 && ctx->timerfd == events[i].data.fd) {
+				uint64_t res;
+				int n = read(ctx->timerfd, &res, sizeof(res)); 
+				if (ctx->debug)
+					printf("neighbour-timer expired: read() returned %d, res=%li\n", n, res);
+				print_neighbours(ctx);
 			} else if (ctx->tunfd == events[i].data.fd) {
 				if (events[i].events & EPOLLIN)
 					tun_handle_in(ctx, events[i].data.fd);
@@ -364,7 +385,7 @@ void loop(struct context *ctx) {
 					read(ctx->babeld_reconnect_tfd, &nEvents, sizeof(nEvents));
 
 					if (ctx->debug)
-						printf("Connecting to babeld\n");
+						printf("Re-Connecting to babeld\n");
 
 					flush_neighbours(ctx);
 					if (ctx->babeld_buffer != NULL)
@@ -375,8 +396,8 @@ void loop(struct context *ctx) {
 					ctx->babelfd = babeld_connect(ctx);
 
 					change_fd(ctx->efd, ctx->babelfd, EPOLL_CTL_ADD, EPOLLIN);
-					if (ctx->debug)
-						printf("Parsed babel data.\n");
+					if (ctx->verbose)
+						printf("reconnected to babeld.\n");
 				}
 			} else if (ctx->babelfd == events[i].data.fd) {
 				if ((events[i].events & EPOLLERR) || (events[i].events & EPOLLHUP)) {
@@ -407,6 +428,9 @@ int main(int argc, char *argv[]) {
 	ctx.babelport = 33123;
 	char mmfd_device[IFNAMSIZ] = "mmfd0";
 	ctx.bind = false;
+	ctx.verbose = false;
+	ctx.debug = false;
+
 
 	while ((c = getopt(argc, argv, "vhdp:D:i:")) != -1)
 		switch (c) {
@@ -453,6 +477,20 @@ int main(int argc, char *argv[]) {
 	ctx.babeld_reconnect_tfd = timerfd_create(CLOCK_MONOTONIC, TFD_NONBLOCK);
 
 	reconnect_babeld(&ctx);
+
+	ctx.timerfd=-1;
+
+	if (ctx.verbose) {
+		printf("arming timer\n");
+		int timeout=15;
+		ctx.timerfd = timerfd_create(CLOCK_MONOTONIC, 0);
+		settimer(timeout, &ctx.timerfd);
+
+		if (ctx.timerfd == -1) {
+			printf("timerfd_create() failed: errno=%d\n", errno);
+			return EXIT_FAILURE;
+		}
+	}
 
 	loop(&ctx);
 }

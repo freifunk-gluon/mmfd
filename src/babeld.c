@@ -23,8 +23,11 @@ bool babeld_handle_neighbour(char **data, void *ctx_p) {
 		   ( !strncmp(data[VERB], "add", 3) || !strncmp(data[VERB], "change", 6) )
 		   )
 				neighbour_change(ctx, &addr, data[IF], atoi(data[REACH]), atoi(data[COST]));
-		else if (!strncmp(data[VERB], "flush", 5))
+		else if (!strncmp(data[VERB], "flush", 5)) {
+			if (ctx->verbose)
+				printf("removing neighbour %s\n", data[ADDRESS]);
 			neighbour_remove(ctx, &addr, data[IF]);
+		}
 
 	}
 	return true;

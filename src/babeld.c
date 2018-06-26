@@ -47,8 +47,10 @@ int babeld_connect(struct context *ctx) {
 
 	do {
 		fd = babelhelper_babel_connect(ctx->babelport);
-		if (fd < 0)
+		if (fd < 0) {
 			fprintf(stderr, "Connecting to babel socket failed. Retrying.\n");
+			usleep(1000000);
+		}
 	} while (fd < 0);
 
 	// read and ignore babel socket header-data

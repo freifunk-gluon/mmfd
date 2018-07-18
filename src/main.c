@@ -381,6 +381,7 @@ void loop(struct context *ctx) {
 					tun_handle_in(ctx, events[i].data.fd);
 			} else if (ctx->babeld_reconnect_tfd == events[i].data.fd) {
 				if (events[i].events & EPOLLIN) {
+					settimer(0, &ctx->babeld_reconnect_tfd); // disarm reconnect timer
 					unsigned long long nEvents;
 					read(ctx->babeld_reconnect_tfd, &nEvents, sizeof(nEvents));
 

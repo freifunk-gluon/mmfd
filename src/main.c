@@ -28,7 +28,7 @@ struct context ctx = {};
 
 void settimer(int sec, int *fd) {
 	struct itimerspec ts;
-	ts.it_interval.tv_sec = sec;
+	ts.it_interval.tv_sec = 0;
 	ts.it_interval.tv_nsec = 0;
 	ts.it_value.tv_sec = sec;
 	ts.it_value.tv_nsec = 0;
@@ -482,15 +482,24 @@ int main(int argc, char *argv[]) {
 	ctx.timerfd=-1;
 
 	if (ctx.verbose) {
-		printf("arming timer\n");
-		int timeout=15;
+		printf("arming neighbour-timer\n");
 		ctx.timerfd = timerfd_create(CLOCK_MONOTONIC, 0);
-		settimer(timeout, &ctx.timerfd);
-
 		if (ctx.timerfd == -1) {
 			printf("timerfd_create() failed: errno=%d\n", errno);
 			return EXIT_FAILURE;
 		}
+		struct itimerspec ts;
+		ts.it_interval.tv_sec = 15;
+		ts.it_interval.tv_nsec = 0;
+		ts.it_value.tv_sec = 15;
+		ts.it_value.tv_nsec = 0;
+
+		if (timerfd_settime(ctx.timerfd, 0, &ts, NULL) < 0) {
+			perror("could not set timer interval\n");
+			close(ctx.timerfd);
+			exit_error("could not set timer, exiting");
+		}
+
 	}
 
 	loop(&ctx);

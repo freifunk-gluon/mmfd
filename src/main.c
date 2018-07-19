@@ -364,10 +364,14 @@ void loop(struct context *ctx) {
 
 	while (1) {
 		if (ctx->debug)
-			printf("epoll_wait:\n");
+			printf("epoll_wait: ... ");
 		int n = epoll_wait(ctx->efd, events, maxevents, -1);
-		for(int i = 0; i < n; i++) {
+		if (ctx->debug)
+			printf("%i\n", n);
+		for ( int i = 0; i < n; i++ ) {
 			if (ctx->udpfd == events[i].data.fd) {
+				if (ctx->debug)
+					printf("event on udpfd\n");
 				if (events[i].events & EPOLLIN)
 					udp_handle_in(ctx, events[i].data.fd);
 			} else if (ctx->timerfd >0 && ctx->timerfd == events[i].data.fd) {
@@ -377,16 +381,21 @@ void loop(struct context *ctx) {
 					printf("neighbour-timer expired: read() returned %d, res=%li\n", n, res);
 				print_neighbours(ctx);
 			} else if (ctx->tunfd == events[i].data.fd) {
+				if (ctx->debug)
+					printf("event on tunfd\n");
 				if (events[i].events & EPOLLIN)
 					tun_handle_in(ctx, events[i].data.fd);
 			} else if (ctx->babeld_reconnect_tfd == events[i].data.fd) {
+				if (ctx->debug)
+					printf("event on babeld_reconnect_tfd\n");
+				
 				if (events[i].events & EPOLLIN) {
 					settimer(0, &ctx->babeld_reconnect_tfd); // disarm reconnect timer
 					unsigned long long nEvents;
 					read(ctx->babeld_reconnect_tfd, &nEvents, sizeof(nEvents));
 
 					if (ctx->debug)
-						printf("Re-Connecting to babeld\n");
+						printf("Re-Connecting to babeld after timer on %i fired.\n", ctx->babeld_reconnect_tfd);
 
 					flush_neighbours(ctx);
 					if (ctx->babeld_buffer != NULL)
@@ -401,11 +410,16 @@ void loop(struct context *ctx) {
 						printf("reconnected to babeld.\n");
 				}
 			} else if (ctx->babelfd == events[i].data.fd) {
+				if (ctx->debug)
+					printf("event on babelfd\n");
 				if ((events[i].events & EPOLLERR) || (events[i].events & EPOLLHUP)) {
+					printf("some error on babelfd happened or HUP\n");
 					reconnect_babeld(ctx);
 				} else if (events[i].events & EPOLLIN) {
-					if (!babeld_handle_in(ctx, events[i].data.fd))
+					if (!babeld_handle_in(ctx, events[i].data.fd)) {
+						printf("babeld_handle_in was not successful - reconnecting\n");
 						reconnect_babeld(ctx);
+					}
 				}
 			}
 		}

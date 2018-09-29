@@ -171,7 +171,7 @@ bool forward_packet(struct context *ctx, uint8_t *packet, ssize_t len, uint32_t 
 	}
 
 	if (VECTOR_LEN(ctx->neighbours) == 0) {
-		log_verbose(ctx, "No neighbour found. Dropping packet with destaddr=%s, nonce=" FMT_NONCE ".\n", dest_ip_str, nonce);
+		log_verbose(ctx, "No neighbour found. Cannot forward packet with destaddr=%s, nonce=" FMT_NONCE ".\n", dest_ip_str, nonce);
 		return true;
 	}
 
@@ -252,8 +252,11 @@ void udp_handle_in(struct context *ctx, int fd) {
 }
 
 void handle_udp_packet(struct context *ctx,  struct sockaddr_in6 *src_addr, struct header *hdr, uint8_t *packet, ssize_t len) {
-	if (forward_packet(ctx, packet, len, hdr->nonce, src_addr))
+	if (forward_packet(ctx, packet, len, hdr->nonce, src_addr)) {
+		if (ctx->verbose)
+			printf("writing packet to tun interface\n");
 		write(ctx->tunfd, packet, len);
+	}
 }
 
 void handle_packet(struct context *ctx, uint8_t *packet, ssize_t len) {
@@ -376,7 +379,7 @@ void loop(struct context *ctx) {
 					udp_handle_in(ctx, events[i].data.fd);
 			} else if (ctx->timerfd >0 && ctx->timerfd == events[i].data.fd) {
 				uint64_t res;
-				int n = read(ctx->timerfd, &res, sizeof(res)); 
+				int n = read(ctx->timerfd, &res, sizeof(res));
 				if (ctx->debug)
 					printf("neighbour-timer expired: read() returned %d, res=%li\n", n, res);
 				print_neighbours(ctx);
@@ -388,7 +391,7 @@ void loop(struct context *ctx) {
 			} else if (ctx->babeld_reconnect_tfd == events[i].data.fd) {
 				if (ctx->debug)
 					printf("event on babeld_reconnect_tfd\n");
-				
+
 				if (events[i].events & EPOLLIN) {
 					settimer(0, &ctx->babeld_reconnect_tfd); // disarm reconnect timer
 					unsigned long long nEvents;
@@ -412,6 +415,7 @@ void loop(struct context *ctx) {
 			} else if (ctx->babelfd == events[i].data.fd) {
 				if (ctx->debug)
 					printf("event on babelfd\n");
+				settimer(5, &ctx->babeld_reconnect_tfd); // reset reconnect timer
 				if ((events[i].events & EPOLLERR) || (events[i].events & EPOLLHUP)) {
 					printf("some error on babelfd happened or HUP\n");
 					reconnect_babeld(ctx);

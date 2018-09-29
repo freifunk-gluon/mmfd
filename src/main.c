@@ -406,6 +406,8 @@ void loop(struct context *ctx) {
 
 					ctx->babeld_buffer = NULL;
 
+					reconnect_babeld(ctx);
+
 					ctx->babelfd = babeld_connect(ctx);
 
 					change_fd(ctx->efd, ctx->babelfd, EPOLL_CTL_ADD, EPOLLIN);
@@ -415,7 +417,7 @@ void loop(struct context *ctx) {
 			} else if (ctx->babelfd == events[i].data.fd) {
 				if (ctx->debug)
 					printf("event on babelfd\n");
-				settimer(5, &ctx->babeld_reconnect_tfd); // reset reconnect timer
+				settimer(90, &ctx->babeld_reconnect_tfd); // reset reconnect timer
 				if ((events[i].events & EPOLLERR) || (events[i].events & EPOLLHUP)) {
 					printf("some error on babelfd happened or HUP\n");
 					reconnect_babeld(ctx);

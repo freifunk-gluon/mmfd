@@ -33,7 +33,7 @@ bool babeld_handle_neighbour(char **data, void *ctx_p) {
 	return true;
 }
 
-bool babeld_handle_in(struct context *ctx, int fd) {
+int babeld_handle_in(struct context *ctx, int fd) {
 	struct babelhelper_ctx bhelper_ctx = {};
 	bhelper_ctx.debug=ctx->debug;
 	return babelhelper_input_pump(&bhelper_ctx, fd, (void*)ctx, babeld_handle_neighbour);
@@ -54,7 +54,7 @@ int babeld_connect(struct context *ctx) {
 	} while (fd < 0);
 
 	// read and ignore babel socket header-data
-	babelhelper_input_pump(&bhelper_ctx, fd, NULL, babelhelper_discard_response);
+	while (! babelhelper_input_pump(&bhelper_ctx, fd, NULL, babelhelper_discard_response));
 
 	int amount = 0;
 	while (amount != 8 ) {

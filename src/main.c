@@ -19,6 +19,7 @@
 #include <arpa/inet.h>
 
 #define MTU 1280
+#define BABELD_RECONNECT_TIMEOUT 90
 
 static void change_fd(int efd, int fd, int type, uint32_t events);
 static void handle_udp_packet(struct context *ctx,  struct sockaddr_in6 *src_addr, struct header *hdr, uint8_t *packet, ssize_t len);
@@ -253,8 +254,7 @@ void udp_handle_in(struct context *ctx, int fd) {
 
 void handle_udp_packet(struct context *ctx,  struct sockaddr_in6 *src_addr, struct header *hdr, uint8_t *packet, ssize_t len) {
 	if (forward_packet(ctx, packet, len, hdr->nonce, src_addr)) {
-		if (ctx->verbose)
-			printf("writing packet to tun interface\n");
+		log_verbose(ctx, "writing packet to tun interface\n");
 		write(ctx->tunfd, packet, len);
 	}
 }
@@ -366,39 +366,33 @@ void loop(struct context *ctx) {
 	events = calloc(maxevents, sizeof(struct epoll_event));
 
 	while (1) {
-		if (ctx->debug)
-			printf("epoll_wait: ... ");
+		log_debug(ctx, "epoll_wait: ... ");
 		int n = epoll_wait(ctx->efd, events, maxevents, -1);
-		if (ctx->debug)
-			printf("%i\n", n);
+		log_debug(ctx, "%i\n", n);
+
 		for ( int i = 0; i < n; i++ ) {
 			if (ctx->udpfd == events[i].data.fd) {
-				if (ctx->debug)
-					printf("event on udpfd\n");
+				log_debug(ctx, "event on udpfd\n");
 				if (events[i].events & EPOLLIN)
 					udp_handle_in(ctx, events[i].data.fd);
 			} else if (ctx->timerfd >0 && ctx->timerfd == events[i].data.fd) {
 				uint64_t res;
 				int n = read(ctx->timerfd, &res, sizeof(res));
-				if (ctx->debug)
-					printf("neighbour-timer expired: read() returned %d, res=%li\n", n, res);
+				log_debug(ctx, "neighbour-timer expired: read() returned %d, res=%li\n", n, res);
 				print_neighbours(ctx);
 			} else if (ctx->tunfd == events[i].data.fd) {
-				if (ctx->debug)
-					printf("event on tunfd\n");
+				log_debug(ctx, "event on tunfd\n");
 				if (events[i].events & EPOLLIN)
 					tun_handle_in(ctx, events[i].data.fd);
 			} else if (ctx->babeld_reconnect_tfd == events[i].data.fd) {
-				if (ctx->debug)
-					printf("event on babeld_reconnect_tfd\n");
+				log_debug(ctx, "event on babeld_reconnect_tfd\n");
 
 				if (events[i].events & EPOLLIN) {
 					settimer(0, &ctx->babeld_reconnect_tfd); // disarm reconnect timer
 					unsigned long long nEvents;
 					read(ctx->babeld_reconnect_tfd, &nEvents, sizeof(nEvents));
 
-					if (ctx->debug)
-						printf("Re-Connecting to babeld after timer on %i fired.\n", ctx->babeld_reconnect_tfd);
+					log_debug(ctx, "Re-Connecting to babeld after timer on %i fired.\n", ctx->babeld_reconnect_tfd);
 
 					flush_neighbours(ctx);
 					if (ctx->babeld_buffer != NULL)
@@ -406,25 +400,28 @@ void loop(struct context *ctx) {
 
 					ctx->babeld_buffer = NULL;
 
-					reconnect_babeld(ctx);
-
 					ctx->babelfd = babeld_connect(ctx);
 
+					settimer(BABELD_RECONNECT_TIMEOUT, &ctx->babeld_reconnect_tfd); // reset reconnect timer
+
 					change_fd(ctx->efd, ctx->babelfd, EPOLL_CTL_ADD, EPOLLIN);
-					if (ctx->verbose)
-						printf("reconnected to babeld.\n");
+					log_verbose(ctx, "reconnected to babeld after timer-event fired.\n");
 				}
 			} else if (ctx->babelfd == events[i].data.fd) {
-				if (ctx->debug)
-					printf("event on babelfd\n");
-				settimer(90, &ctx->babeld_reconnect_tfd); // reset reconnect timer
+				log_debug(ctx, "event on babelfd\n");
+				settimer(BABELD_RECONNECT_TIMEOUT, &ctx->babeld_reconnect_tfd); // reset reconnect timer
 				if ((events[i].events & EPOLLERR) || (events[i].events & EPOLLHUP)) {
 					printf("some error on babelfd happened or HUP\n");
 					reconnect_babeld(ctx);
 				} else if (events[i].events & EPOLLIN) {
-					if (!babeld_handle_in(ctx, events[i].data.fd)) {
+					int babelhandle_status = babeld_handle_in(ctx, events[i].data.fd);
+					if ( babelhandle_status < 0 ) {
 						printf("babeld_handle_in was not successful - reconnecting\n");
 						reconnect_babeld(ctx);
+					} else if ( babelhandle_status == 0 ) {
+						log_debug(ctx, "waiting for more data to appear on babel socket.\n");
+					} else if ( babelhandle_status > 0 )  {
+						log_debug(ctx, "received ok. -- waiting for more data to appear on babel socket\n");
 					}
 				}
 			}
@@ -501,7 +498,7 @@ int main(int argc, char *argv[]) {
 
 	ctx.timerfd=-1;
 
-	if (ctx.verbose) {
+	if (ctx.verbose) { // the neighbour-timer is used exclusively to print the neighbour list in verbose modes. No need to initialize it when not verbose.
 		printf("arming neighbour-timer\n");
 		ctx.timerfd = timerfd_create(CLOCK_MONOTONIC, 0);
 		if (ctx.timerfd == -1) {

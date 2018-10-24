@@ -54,7 +54,12 @@ int babeld_connect(struct context *ctx) {
 	} while (fd < 0);
 
 	// read and ignore babel socket header-data
-	while (! babelhelper_input_pump(&bhelper_ctx, fd, NULL, babelhelper_discard_response));
+	log_verbose(ctx, "skipping header data on babeld socket");
+	while (! babelhelper_input_pump(&bhelper_ctx, fd, NULL, babelhelper_discard_response)) {
+	  log_verbose(ctx, ".");
+	  usleep(100000);
+	}
+	log_verbose(ctx, "\n");
 
 	int amount = 0;
 	while (amount != 8 ) {

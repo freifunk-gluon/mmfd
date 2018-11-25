@@ -272,7 +272,6 @@ void tun_handle_in(struct context *ctx, int fd) {
 
 	while (1) {
 		count = read(fd, buf, MTU);
-//		printf("reading buffer %i %s\n", count, buf);
 
 		if (count == -1) {
 			/* If errno == EAGAIN, that means we have read all
@@ -290,9 +289,8 @@ void tun_handle_in(struct context *ctx, int fd) {
 
 		struct ipv6hdr *hdr = (struct ipv6hdr*)buf;
 
-		// We're only interested in ip6 packets
 		if (hdr->version != 6) {
-			log_verbose(ctx, "Dropping non non ip6 packet.\n");
+			log_verbose(ctx, "Dropping non-IPv6 packet.\n");
 			continue;
 		}
 
@@ -301,7 +299,7 @@ void tun_handle_in(struct context *ctx, int fd) {
 			if (ctx->verbose) {
 				char dest_ip_str[INET6_ADDRSTRLEN];
 				inet_ntop(AF_INET6, &hdr->daddr, dest_ip_str, INET6_ADDRSTRLEN);
-				log_verbose(ctx, "Dropping non multicast packet to dest addr %s.\n", dest_ip_str);
+				log_verbose(ctx, "Dropping non multicast packet destined to %s.\n", dest_ip_str);
 			}
 
 			continue;
@@ -313,10 +311,12 @@ void tun_handle_in(struct context *ctx, int fd) {
 
 void reconnect_babeld(struct context *ctx) {
 	struct itimerspec delay = {};
+	log_debug(ctx, "reconnect_babeld - starting reconnect timer\n");
 
 	if (ctx->babelfd) {
 		change_fd(ctx->efd, ctx->babelfd, EPOLL_CTL_DEL, EPOLLIN);
 		close(ctx->babelfd);
+		log_debug(ctx, "closing babeld connection\n");
 
 		delay = (struct itimerspec) {
 			.it_value = {
@@ -325,6 +325,7 @@ void reconnect_babeld(struct context *ctx) {
 			}
 		};
 	} else {
+		log_debug(ctx, "babelfd was 0 - just starting reconnect\n");
 		delay = (struct itimerspec) {
 			.it_value = {
 				.tv_sec = 0,
@@ -392,7 +393,12 @@ void loop(struct context *ctx) {
 					unsigned long long nEvents;
 					read(ctx->babeld_reconnect_tfd, &nEvents, sizeof(nEvents));
 
-					log_debug(ctx, "Re-Connecting to babeld after timer on %i fired.\n", ctx->babeld_reconnect_tfd);
+					log_debug(ctx, "Re-Connecting to babeld after timer on %i fired by closing and re-opening babeld socket.\n", ctx->babeld_reconnect_tfd);
+
+					if (ctx->babelfd) {
+						change_fd(ctx->efd, ctx->babelfd, EPOLL_CTL_DEL, EPOLLIN);
+						close(ctx->babelfd);
+					}
 
 					flush_neighbours(ctx);
 					if (ctx->babeld_buffer != NULL)
@@ -424,6 +430,10 @@ void loop(struct context *ctx) {
 						log_debug(ctx, "received ok. -- waiting for more data to appear on babel socket\n");
 					}
 				}
+			} else {
+				char junk;
+				read(events[i].data.fd, &junk, 1);
+				fprintf(stderr, "THIS SHOULD NEVER HAPPEN: Data arrived on fd %d which we are not monitoring in our loop, discarding data: %c\n", events[i].data.fd, junk);
 			}
 		}
 	}

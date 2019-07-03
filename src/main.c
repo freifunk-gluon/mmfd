@@ -422,7 +422,7 @@ void loop(struct context *ctx) {
 				} else if (events[i].events & EPOLLIN) {
 					int babelhandle_status = babeld_handle_in(ctx, events[i].data.fd);
 					if ( babelhandle_status < 0 ) {
-						printf("babeld_handle_in was not successful - reconnecting\n");
+						printf("babeld_handle_in was not successful (status %d) - reconnecting\n", babelhandle_status);
 						reconnect_babeld(ctx);
 					} else if ( babelhandle_status == 0 ) {
 						log_debug(ctx, "waiting for more data to appear on babel socket.\n");

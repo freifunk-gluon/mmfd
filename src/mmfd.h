@@ -6,25 +6,34 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <netinet/in.h>
+#include <net/if.h>
+#include "taskqueue.h"
 
 #define PORT 27275
+#define HELLO_INTERVAL 10
+#define FMT_NONCE "0x%08x"
+
+typedef struct interface {
+	char ifname[IFNAMSIZ];
+	int ifindex;
+	bool ok;
+} interface;
 
 struct context {
-	char *babeld_buffer;
 	VECTOR(struct neighbour) neighbours;
 	VECTOR(uint64_t) seen;
-	VECTOR(char *) interfaces;
+	VECTOR(interface) interfaces;
+	taskqueue_ctx taskqueue_ctx;;
+	struct sockaddr_in6 groupaddr;
 	int efd;
 	int tunfd;
-	int babelport;
-	int timerfd;
-	int babelfd;
-	int babeld_reconnect_tfd;
-	int udpfd;
+	int intercomfd;
 	bool verbose;
 	bool debug;
 	bool bind;
+
 };
+extern struct context ctx;
 
 struct __attribute__((__packed__)) header {
 	uint32_t nonce;
@@ -33,6 +42,5 @@ struct __attribute__((__packed__)) header {
 struct neighbour {
 	struct sockaddr_in6 address;
 	char *ifname;
-	int reach;
-	int cost;
+	taskqueue_t *timeout_task;
 };

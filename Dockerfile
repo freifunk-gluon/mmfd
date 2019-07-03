@@ -9,8 +9,7 @@ RUN DEBIAN_FRONTEND=noninteractive \
     apt-get -y upgrade && \
     apt-get -y install \
         build-essential \
-        git \
-        libbabelhelper && \
+        git && \
     apt-get clean autoclean && \
     apt-get autoremove && \
     rm -rf /var/lib/apt/lists/*

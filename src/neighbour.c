@@ -1,5 +1,7 @@
 #include "neighbour.h"
 #include "mmfd.h"
+#include "util.h"
+#include "alloc.h"
 
 #include <stdio.h>
 #include <stdbool.h>
@@ -7,21 +9,20 @@
 #include <arpa/inet.h>
 #include <net/if.h>
 
-void print_neighbours(struct context *ctx) {
+void print_neighbours() {
 	puts("neighbours:");
 
-	for (int i = 0; i < VECTOR_LEN(ctx->neighbours); i++) {
-		struct neighbour *neighbour = &VECTOR_INDEX(ctx->neighbours, i);
+	for (int i = 0; i < VECTOR_LEN(ctx.neighbours); i++) {
+		struct neighbour *neighbour = &VECTOR_INDEX(ctx.neighbours, i);
 
-		char ip_str[INET6_ADDRSTRLEN];
-		inet_ntop(AF_INET6, &neighbour->address.sin6_addr, ip_str, INET6_ADDRSTRLEN);
-
-		printf(" - %s on %s (%d), reach %d, cost %d\n", ip_str, neighbour->ifname, neighbour->address.sin6_scope_id, neighbour->reach, neighbour->cost);
+		printf(" - %s on %s\n", print_ip(&neighbour->address.sin6_addr), neighbour->ifname);
 	}
 }
 
 bool cmp_neighbour(struct neighbour *neighbour, struct in6_addr *address, char *ifname) {
-	return strcmp(ifname, neighbour->ifname) == 0 && memcmp(address, &neighbour->address.sin6_addr, sizeof(*address)) == 0;
+	bool is_sameif = strncmp(ifname, neighbour->ifname, IFNAMSIZ) == 0;
+	bool is_sameaddress = (memcmp(address, &(neighbour->address.sin6_addr), sizeof(struct in6_addr)) == 0);
+	return is_sameif && is_sameaddress;
 }
 
 struct neighbour *find_neighbour(struct context *ctx, struct in6_addr *address, char *ifname) {
@@ -35,15 +36,44 @@ struct neighbour *find_neighbour(struct context *ctx, struct in6_addr *address, 
 	return NULL;
 }
 
+void copy_neighbour(struct neighbour *dest, struct neighbour *source) {
+	memcpy(dest, source, sizeof(struct neighbour));
+	dest->ifname = mmfd_strdup(source->ifname);
+}
+
+void free_neighbour_members(struct neighbour *neighbour) {
+	free(neighbour->ifname);
+}
+
+void free_neighbour(struct neighbour *neighbour) {
+	free_neighbour_members(neighbour);
+	free(neighbour);
+}
+
+void free_neighbour_task(void *neighbour) {
+	free_neighbour((struct neighbour*)neighbour);
+}
+
+void neighbour_remove_task(void *d) {
+	struct neighbour *n = (struct neighbour*)d;
+	log_verbose("removing neighbour %s(s)\n", print_ip(&n->address.sin6_addr), n->ifname);
+	neighbour_remove(&ctx, &(n->address.sin6_addr), n->ifname);
+}
+
 struct neighbour *add_neighbour(struct context *ctx, struct in6_addr *address, char *ifname) {
 	struct neighbour neighbour = {
-		.ifname = strdup(ifname),
-		.address = {
-			.sin6_family = AF_INET6,
-			.sin6_addr = *address,
-		}
+		.ifname = mmfd_strdup(ifname),
 	};
 
+	log_debug("copying ip %s from packet\n", print_ip(address));
+	memcpy(&neighbour.address.sin6_addr, address, sizeof(struct in6_addr));
+	neighbour.address.sin6_family = AF_INET6;
+	neighbour.address.sin6_port = htons(PORT);
+
+
+	struct neighbour *neighbour_task_data = mmfd_alloc(sizeof(struct neighbour));
+	copy_neighbour(neighbour_task_data, &neighbour);
+	neighbour.timeout_task = post_task(&ctx->taskqueue_ctx, HELLO_INTERVAL * 5, 0, neighbour_remove_task, free_neighbour_task, neighbour_task_data);
 	VECTOR_ADD(ctx->neighbours, neighbour);
 	return &VECTOR_INDEX(ctx->neighbours, VECTOR_LEN(ctx->neighbours) - 1);
 }
@@ -53,15 +83,14 @@ void neighbour_remove(struct context *ctx, struct in6_addr *address, char *ifnam
 		struct neighbour *neighbour = &VECTOR_INDEX(ctx->neighbours, i);
 
 		if (cmp_neighbour(neighbour, address, ifname)) {
-
-			free(neighbour->ifname);
+			free_neighbour_members(neighbour);
 			VECTOR_DELETE(ctx->neighbours, i);
 			break;
 		}
 	}
 }
 
-void neighbour_add(struct context *ctx, struct in6_addr *address, char *ifname, int reach, int cost) {
+void neighbour_add(struct context *ctx, struct in6_addr *address, char *ifname) {
 	unsigned int ifindex = if_nametoindex(ifname);
 
 	if (ifindex == 0) {
@@ -69,30 +98,26 @@ void neighbour_add(struct context *ctx, struct in6_addr *address, char *ifname, 
 		return;
 	}
 
-	struct neighbour *neighbour = add_neighbour(ctx, address, ifname);
-	neighbour->address.sin6_scope_id = ifindex;
-	neighbour->address.sin6_port = htons(PORT);
+	add_neighbour(ctx, address, ifname);
 }
 
-void neighbour_change(struct context *ctx, struct in6_addr *address, char *ifname, int reach, int cost) {
+void neighbour_change(struct context *ctx, struct in6_addr *address, char *ifname) {
 	struct neighbour *neighbour = find_neighbour(ctx, address, ifname);
 
-	if (neighbour == NULL)
-	{
-		if ( ctx->verbose )
-			printf("did not find changed neighbour, adding\n");
-		neighbour_add(ctx,address, ifname, reach, cost);
+	if (neighbour == NULL) {
+		log_verbose("did not find changed neighbour, adding\n");
+		neighbour_add(ctx, address, ifname);
 		return;
+	} else {
+		reschedule_task(&ctx->taskqueue_ctx, neighbour->timeout_task, 5 * HELLO_INTERVAL, 0);
 	}
-	neighbour->reach = reach;
-	neighbour->cost = cost;
 }
 
 void flush_neighbours(struct context *ctx) {
 	for (int i = 0; i < VECTOR_LEN(ctx->neighbours); i++) {
 		struct neighbour *neighbour = &VECTOR_INDEX(ctx->neighbours, i);
 
-		free(neighbour->ifname);
+		free_neighbour_members(neighbour);
 		VECTOR_DELETE(ctx->neighbours, i);
 	}
 }

@@ -5,7 +5,7 @@ IF(NOT PKG_CONFIG_FOUND)
         MESSAGE(FATAL_ERROR "Error: pkg-config not found on this system")
 ENDIF(NOT PKG_CONFIG_FOUND)
 
-set(MMFD_CFLAGS "-Wall -O0 -std=gnu11 -D_GNU_SOURCE")
+set(MMFD_CFLAGS "-Wall -Os -std=gnu11 -D_GNU_SOURCE")
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${MMFD_BINARY_DIR} ${CMAKE_CURRENT_BINARY_DIR})
 

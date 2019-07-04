@@ -1,20 +1,14 @@
 # Mesh Multicast Flooding Daemon
 
 The Mesh Multicast Flooding Daemon helps with spreading packets in a layer 3
-mesh. It provides a tun interface where it accepts packets for forwarding to all
-other nodes. This is rather simple for now, but it may be improved in a future
-release. After that, it'll be renamed to Mesh Multicast Forwarding Daemon.
+mesh. It provides a tun interface where it accepts packets for forwarding to
+all other nodes.
 
-mmfd is built to work in tandem with babeld. It'll connect to babeld's front-end
-where it'll listen for mesh neighbours discovered by babeld.
+mmfd is built to work in tandem with babeld. Until
+22996796e2f62972c2d70f94b0f656ec4968a55a it connects to babeld's front-end
+where to listens for mesh neighbours discovered by babeld.
 
-# Todo
+More recently, mmfd sends multicast messages to discover its own neighbours
+making it independent from the mesh protocol and lightening the load on a
+potentially very busy babeld.
 
-- connect to babeld
-- listen for neighbours
-- automatically create sockets as needed
-- create tun device
-- set MTU to 1280
-- use own IP protocol (253 for now)
-- decrement TTL in packet itself
-- identify seen packets by (src, dst, nonce)

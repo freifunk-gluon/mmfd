@@ -179,10 +179,10 @@ bool forward_packet(struct context *ctx, uint8_t *packet, ssize_t len, uint32_t 
 	for (int i = 0; i < VECTOR_LEN(ctx->neighbours); i++) {
 		struct neighbour *neighbour = &VECTOR_INDEX(ctx->neighbours, i);
 
-		int forwardmessage=1;
-		if (src_addr) {
-			forwardmessage = memcmp(src_addr,&(neighbour->address),sizeof(neighbour->address));
-		}
+		int forwardmessage =  src_addr ?
+					memcmp(&src_addr->sin6_addr, &(neighbour->address.sin6_addr), sizeof(struct in6_addr)) &&
+					src_addr->sin6_scope_id == neighbour->address.sin6_scope_id
+				      : 1;
 
 		if (forwardmessage) {
 			struct msghdr msg = {

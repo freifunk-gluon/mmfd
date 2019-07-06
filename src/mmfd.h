@@ -30,13 +30,12 @@ struct context {
 	int intercomfd;
 	bool verbose;
 	bool debug;
-	bool bind;
 };
 
 extern struct context ctx;
 
 struct __attribute__((__packed__)) header {
-	uint32_t nonce;
+	uint64_t nonce;
 };
 
 struct neighbour {

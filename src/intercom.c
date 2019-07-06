@@ -10,8 +10,8 @@
 void intercom_send_packet(struct context *ctx, uint8_t *packet, ssize_t packet_len);
 
 int assemble_header(intercom_packet_hello *packet) {
-	obtainrandom(&packet->hdr.nonce, sizeof(uint32_t), 0);
-	return sizeof(uint32_t);
+	obtainrandom(&packet->hdr.nonce, sizeof(packet->hdr.nonce), 0);
+	return sizeof(packet->hdr);
 }
 
 bool intercom_send_hello() {
@@ -68,7 +68,7 @@ bool join_mcast(const struct in6_addr addr, interface *iface) {
 }
 
 void intercom_update_interfaces(struct context *ctx) {
-	if (ctx->bind) {
+	if (VECTOR_LEN(ctx->interfaces)) {
 		for (int i = 0; i < VECTOR_LEN(ctx->interfaces); i++) {
 			interface *iface = &VECTOR_INDEX(ctx->interfaces, i);
 
@@ -86,8 +86,7 @@ void intercom_send_packet(struct context *ctx, uint8_t *packet, ssize_t packet_l
 	for (int i = 0; i < VECTOR_LEN(ctx->interfaces); i++) {
 		interface *iface = &VECTOR_INDEX(ctx->interfaces, i);
 		ctx->groupaddr.sin6_scope_id = iface->ifindex;
-		ssize_t rc =
-		    sendto(ctx->intercomfd, packet, packet_len, 0, &ctx->groupaddr, sizeof(struct sockaddr_in6));
+		ssize_t rc = sendto(ctx->intercomfd, packet, packet_len, 0, &ctx->groupaddr, sizeof(struct sockaddr_in6));
 		log_debug("sent intercom packet on %s to %s rc: %zi\n", iface->ifname, print_ip(&ctx->groupaddr.sin6_addr), rc);
 	}
 	ctx->groupaddr.sin6_scope_id = 0;

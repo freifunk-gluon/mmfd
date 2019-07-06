@@ -26,7 +26,7 @@
 
 static void change_fd(int efd, int fd, int type, uint32_t events);
 static void handle_udp_packet(struct context *ctx,  struct sockaddr_in6 *src_addr, struct header *hdr, uint8_t *packet, ssize_t len);
-bool is_seen(uint32_t nonce);
+bool is_seen(uint64_t nonce);
 struct context ctx = {};
 
 void send_hello_task(void *d) {
@@ -47,12 +47,12 @@ int udp_open() {
 		exit_error("creating socket");
 	int on = 1;
 	if(setsockopt(fd, IPPROTO_IPV6, IPV6_V6ONLY, &on, sizeof(on)))
-		exit_error("error on setsockopt");
-	if (ctx.bind) {
-		for (int i=0;i<VECTOR_LEN(ctx.interfaces);i++) {
-			if(setsockopt(fd, SOL_SOCKET, SO_BINDTODEVICE, VECTOR_INDEX(ctx.interfaces, i).ifname, strnlen(VECTOR_INDEX(ctx.interfaces, i).ifname, IFNAMSIZ))) {
-				exit_error("error on setsockopt");
-			}
+		exit_error("error on setsockopt (IPV6_V6ONLY)");
+
+	for (int i = 0; i < VECTOR_LEN(ctx.interfaces); i++) {
+		interface *iface =  &VECTOR_INDEX(ctx.interfaces, i);
+		if (setsockopt(fd, SOL_SOCKET, SO_BINDTODEVICE, iface->ifname, strnlen(iface->ifname, IFNAMSIZ))) {
+			exit_error("error on setsockopt (BIND)");
 		}
 	}
 
@@ -133,7 +133,7 @@ error:
 	return -1;
 }
 
-bool is_seen(uint32_t nonce) {
+bool is_seen(uint64_t nonce) {
 
 	while (VECTOR_LEN(ctx.seen) > 2000)
 		VECTOR_DELETE(ctx.seen, 0);
@@ -148,7 +148,7 @@ bool is_seen(uint32_t nonce) {
 	return false;
 }
 
-bool forward_packet(struct context *ctx, uint8_t *packet, ssize_t len, uint32_t nonce, struct sockaddr_in6 *src_addr) {
+bool forward_packet(struct context *ctx, uint8_t *packet, ssize_t len, uint64_t nonce, struct sockaddr_in6 *src_addr) {
 
 	if (is_seen(nonce))
 		return false;
@@ -213,10 +213,11 @@ void udp_handle_in(struct context *ctx, int fd) {
 					   .iov_base = &hdr, .iov_len = sizeof(hdr),
 				       },
 				       {
-					   .iov_base = &buffer, .iov_len = sizeof(buffer),
+					   .iov_base = buffer, .iov_len = sizeof(buffer),
 				       }};
 
 		uint8_t cmbuf[CMSG_SPACE(sizeof(struct in6_pktinfo))];
+		memset(&src_addr.sin6_addr, 0, sizeof(struct in6_addr));
 		struct msghdr message = {
 		    .msg_name = &src_addr,
 		    .msg_namelen = sizeof(src_addr),
@@ -239,7 +240,7 @@ void udp_handle_in(struct context *ctx, int fd) {
 		else if (message.msg_flags & MSG_TRUNC)
 			log_error("Message too long for buffer\n");
 		else {
-			bool neighbour_changed = false;
+			bool is_packet_for_mcast = false;
 			for (struct cmsghdr *cmsg = CMSG_FIRSTHDR(&message); cmsg != NULL;
 			     cmsg = CMSG_NXTHDR(&message, cmsg)) {
 				if (!(cmsg->cmsg_level == IPPROTO_IPV6 && cmsg->cmsg_type == IPV6_PKTINFO)) {
@@ -249,24 +250,22 @@ void udp_handle_in(struct context *ctx, int fd) {
 				struct in6_pktinfo *pi = (struct in6_pktinfo *)CMSG_DATA(cmsg);
 
 				if (memcmp(&pi->ipi6_addr, &ctx->groupaddr.sin6_addr,
-					sizeof(ctx->groupaddr.sin6_addr)) == 0) {
-					log_verbose("received package " FMT_NONCE " from %s for %s\n", hdr.nonce,
-						    print_ip((struct in6_addr *)&src_addr.sin6_addr),
-						    print_ip(&pi->ipi6_addr));
+					   sizeof(ctx->groupaddr.sin6_addr)) == 0) {
+					is_packet_for_mcast = true;
+					log_verbose("received packet " FMT_NONCE " from %s for %s\n", hdr.nonce,
+						    print_ip(&src_addr.sin6_addr), print_ip(&pi->ipi6_addr));
 					if (is_seen(hdr.nonce)) {
-						return;
+						continue;
 					}
 					VECTOR_ADD(ctx->seen, hdr.nonce);
 
 					char buf[IFNAMSIZ];
 					char *ifname = if_indextoname(pi->ipi6_ifindex, buf);
 					neighbour_change(ctx, &src_addr.sin6_addr, ifname);
-					neighbour_changed = true;
 				}
 			}
-			if (!neighbour_changed) {
-				handle_udp_packet(ctx, (struct sockaddr_in6 *)&src_addr, &hdr, buffer,
-						  count - sizeof(hdr));
+			if (!is_packet_for_mcast) {
+				handle_udp_packet(ctx, &src_addr, &hdr, buffer, count - sizeof(hdr));
 			}
 		}
 	}
@@ -280,7 +279,8 @@ void handle_udp_packet(struct context *ctx,  struct sockaddr_in6 *src_addr, stru
 }
 
 void handle_packet(struct context *ctx, uint8_t *packet, ssize_t len) {
-	uint32_t nonce = rand();
+	uint64_t nonce;
+	obtainrandom(&nonce, sizeof(nonce), 0);
 
 	forward_packet(ctx, packet, len, nonce, NULL);
 }
@@ -392,6 +392,7 @@ bool if_add(char *ifname) {
 
 	strncpy(iface.ifname, ifname, IFNAMSIZ);
 	iface.ifindex = if_nametoindex(ifname);
+	iface.ok=false;
 
 	if (iface.ifindex) {
 		VECTOR_ADD(ctx.interfaces, iface);
@@ -405,7 +406,6 @@ int main(int argc, char *argv[]) {
 	int c;
 	char mmfd_device[IFNAMSIZ] = "mmfd0";
 	memset(&ctx, 0, sizeof(ctx));
-	ctx.bind = false;
 	ctx.verbose = false;
 	ctx.debug = false;
 
@@ -429,12 +429,8 @@ int main(int argc, char *argv[]) {
 				snprintf(mmfd_device, IFNAMSIZ, "%s", optarg);
 				break;
 			case 'i':
-				if (if_add(optarg)) {
-					ctx.bind=true;
-				}
-				else {
+				if (!if_add(optarg))
 					fprintf(stderr, "Could not find device %s. ignoring.\n", optarg);
-				}
 				break;
 			default:
 				fprintf(stderr, "Invalid parameter %c ignored.\n", c);

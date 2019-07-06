@@ -20,12 +20,15 @@ void print_neighbours() {
 }
 
 bool cmp_neighbour(struct neighbour *neighbour, struct in6_addr *address, char *ifname) {
-	bool is_sameif = strncmp(ifname, neighbour->ifname, IFNAMSIZ) == 0;
+	bool is_sameif = (ifname && neighbour && neighbour->ifname) ? strncmp(ifname, neighbour->ifname, IFNAMSIZ) == 0 : 0;
 	bool is_sameaddress = (memcmp(address, &(neighbour->address.sin6_addr), sizeof(struct in6_addr)) == 0);
 	return is_sameif && is_sameaddress;
 }
 
 struct neighbour *find_neighbour(struct context *ctx, struct in6_addr *address, char *ifname) {
+	if (!ifname || !address)
+		return NULL;
+
 	for (int i = 0; i < VECTOR_LEN(ctx->neighbours); i++) {
 		struct neighbour *neighbour = &VECTOR_INDEX(ctx->neighbours, i);
 
@@ -63,9 +66,10 @@ void neighbour_remove_task(void *d) {
 struct neighbour *add_neighbour(struct context *ctx, struct in6_addr *address, char *ifname) {
 	struct neighbour neighbour = {
 		.ifname = mmfd_strdup(ifname),
+		.address = {},
 	};
 
-	log_verbose("copying ip %s from packet from interface %s\n", print_ip(address), ifname);
+	log_verbose("copying ip %s from hello packet on interface %s\n", print_ip(address), ifname);
 	memcpy(&neighbour.address.sin6_addr, address, sizeof(struct in6_addr));
 	neighbour.address.sin6_family = AF_INET6;
 	neighbour.address.sin6_port = htons(PORT);
@@ -102,6 +106,7 @@ void neighbour_add(struct context *ctx, struct in6_addr *address, char *ifname) 
 }
 
 void neighbour_change(struct context *ctx, struct in6_addr *address, char *ifname) {
+
 	struct neighbour *neighbour = find_neighbour(ctx, address, ifname);
 
 	if (neighbour == NULL) {

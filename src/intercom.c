@@ -30,75 +30,67 @@ bool intercom_send_hello() {
 }
 
 bool leave_mcast(const struct in6_addr addr, interface *iface) {
+
+	if (!iface || !iface->ifindex)
+		return false;
+
 	struct ipv6_mreq mreq;
 
 	mreq.ipv6mr_multiaddr = addr;
 	mreq.ipv6mr_interface = iface->ifindex;
-
-	if (mreq.ipv6mr_interface == 0)
-		goto error;
 
 	if (setsockopt(ctx.intercomfd, IPPROTO_IPV6, IPV6_LEAVE_GROUP, &mreq, sizeof(mreq)) == 0)
 		return true;
 
-error:
 	log_error("Could not leave multicast group on %s: ", iface->ifname);
-	perror(NULL);
 	return false;
 }
 
 bool join_mcast(const struct in6_addr addr, interface *iface) {
-	struct ipv6_mreq mreq;
+	struct ipv6_mreq mreq = {};
 
 	mreq.ipv6mr_multiaddr = addr;
-	mreq.ipv6mr_interface = iface->ifindex;
-
-	if (mreq.ipv6mr_interface == 0)
-		goto error;
+	if (iface && iface->ifindex)
+		mreq.ipv6mr_interface = iface->ifindex;
+	else
+		mreq.ipv6mr_interface = 0;
 
 	setsockopt(ctx.intercomfd, IPPROTO_IPV6, IPV6_RECVPKTINFO, &mreq, sizeof(mreq));
 	if (setsockopt(ctx.intercomfd, IPPROTO_IPV6, IPV6_JOIN_GROUP, &mreq, sizeof(mreq)) == 0)
 		return true;
 	else if (errno == EADDRINUSE)
 		return true;
-
-error:
-	log_error("Could not join multicast group on %s: ", iface->ifname);
-	perror(NULL);
-	return false;
+	else {
+		log_error("Could not join multicast group on %s: ", iface ? iface->ifname : "?");
+		perror(NULL);
+		return false;
+	}
 }
 
 void intercom_update_interfaces(struct context *ctx) {
-	for (int i = 0; i < VECTOR_LEN(ctx->interfaces); i++) {
-		interface *iface = &VECTOR_INDEX(ctx->interfaces, i);
+	if (ctx->bind) {
+		for (int i = 0; i < VECTOR_LEN(ctx->interfaces); i++) {
+			interface *iface = &VECTOR_INDEX(ctx->interfaces, i);
 
-		iface->ifindex = if_nametoindex(iface->ifname);
+			iface->ifindex = if_nametoindex(iface->ifname);
 
-		if (!iface->ifindex)
-			continue;
-
-		iface->ok = join_mcast(ctx->groupaddr.sin6_addr, iface);
+			if (iface->ifindex)
+				iface->ok = join_mcast(ctx->groupaddr.sin6_addr, iface);
+		}
+	} else {
+		join_mcast(ctx->groupaddr.sin6_addr, 0);
 	}
 }
 
 void intercom_send_packet(struct context *ctx, uint8_t *packet, ssize_t packet_len) {
 	for (int i = 0; i < VECTOR_LEN(ctx->interfaces); i++) {
 		interface *iface = &VECTOR_INDEX(ctx->interfaces, i);
-
-		if (!iface->ok)
-			continue;
-
-		struct sockaddr_in6 _groupaddr = {};
-		memcpy(&_groupaddr, &ctx->groupaddr, sizeof(struct sockaddr_in6));
-
-		ssize_t rc = sendto(ctx->intercomfd, packet, packet_len, 0, (struct sockaddr *)&_groupaddr,
-				    sizeof(struct sockaddr_in6));
-		log_debug("sent intercom packet to %s on iface %s rc: %zi\n", print_ip(&_groupaddr.sin6_addr),
-			  iface->ifname, rc);
-
-		if (rc < 0)
-			iface->ok = false;
+		ctx->groupaddr.sin6_scope_id = iface->ifindex;
+		ssize_t rc =
+		    sendto(ctx->intercomfd, packet, packet_len, 0, &ctx->groupaddr, sizeof(struct sockaddr_in6));
+		log_debug("sent intercom packet on %s to %s rc: %zi\n", iface->ifname, print_ip(&ctx->groupaddr.sin6_addr), rc);
 	}
+	ctx->groupaddr.sin6_scope_id = 0;
 }
 
 void intercom_init(struct context *ctx) {

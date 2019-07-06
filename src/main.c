@@ -50,7 +50,7 @@ int udp_open() {
 		exit_error("error on setsockopt");
 	if (ctx.bind) {
 		for (int i=0;i<VECTOR_LEN(ctx.interfaces);i++) {
-			if(setsockopt(fd, SOL_SOCKET, SO_BINDTODEVICE, VECTOR_INDEX(ctx.interfaces, i).ifname, strnlen(VECTOR_INDEX(ctx.interfaces, i).ifname, IFNAMSIZ-1))) {
+			if(setsockopt(fd, SOL_SOCKET, SO_BINDTODEVICE, VECTOR_INDEX(ctx.interfaces, i).ifname, strnlen(VECTOR_INDEX(ctx.interfaces, i).ifname, IFNAMSIZ))) {
 				exit_error("error on setsockopt");
 			}
 		}
@@ -207,7 +207,7 @@ void udp_handle_in(struct context *ctx, int fd) {
 	while (1) {
 		struct header hdr;
 		uint8_t buffer[1500];
-		struct sockaddr_in6 src_addr;
+		struct sockaddr_in6 src_addr = {};
 
 		struct iovec iov[2] = {{
 					   .iov_base = &hdr, .iov_len = sizeof(hdr),
@@ -258,8 +258,8 @@ void udp_handle_in(struct context *ctx, int fd) {
 					}
 					VECTOR_ADD(ctx->seen, hdr.nonce);
 
-					char ifname[IFNAMSIZ];
-					if_indextoname(pi->ipi6_ifindex, ifname);
+					char buf[IFNAMSIZ];
+					char *ifname = if_indextoname(pi->ipi6_ifindex, buf);
 					neighbour_change(ctx, &src_addr.sin6_addr, ifname);
 					neighbour_changed = true;
 				}

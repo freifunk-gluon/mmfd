@@ -38,7 +38,7 @@ struct neighbour *find_neighbour(struct context *ctx, struct in6_addr *address, 
 
 void copy_neighbour(struct neighbour *dest, struct neighbour *source) {
 	memcpy(dest, source, sizeof(struct neighbour));
-	dest->ifname = mmfd_strdup(source->ifname);
+	dest->ifname = source->ifname ? mmfd_strdup(source->ifname) : NULL;
 }
 
 void free_neighbour_members(struct neighbour *neighbour) {
@@ -65,7 +65,7 @@ struct neighbour *add_neighbour(struct context *ctx, struct in6_addr *address, c
 		.ifname = mmfd_strdup(ifname),
 	};
 
-	log_debug("copying ip %s from packet\n", print_ip(address));
+	log_verbose("copying ip %s from packet from interface %s\n", print_ip(address), ifname);
 	memcpy(&neighbour.address.sin6_addr, address, sizeof(struct in6_addr));
 	neighbour.address.sin6_family = AF_INET6;
 	neighbour.address.sin6_port = htons(PORT);

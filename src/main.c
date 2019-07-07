@@ -21,8 +21,6 @@
 #include <sys/timerfd.h>
 
 #define NEIGHBOUR_PRINT_INTERVAL 5
-#define MTU 1280
-#define BABELD_RECONNECT_TIMEOUT 90
 
 static void change_fd(int efd, int fd, int type, uint32_t events);
 static void handle_udp_packet(struct context *ctx,  struct sockaddr_in6 *src_addr, struct header *hdr, uint8_t *packet, ssize_t len);

@@ -376,7 +376,7 @@ void loop(struct context *ctx) {
 }
 
 void usage() {
-	puts("Usage: mmfd [-h] [-v] [-d] [-D <devicename>] [-p <port>] [-i <mesh-device>] [-i <mesh-device>] [-s /path/to/socket]");
+	puts("Usage: mmfd [-h] [-v] [-d] [-D <devicename>] [-i <mesh-device>] [-i <mesh-device>] [-s /path/to/socket]");
 	puts("  -v     verbose");
 	puts("  -d     debug");
 	puts("  -D     name of the mmfd device");
@@ -398,7 +398,7 @@ int main(int argc, char *argv[]) {
 
 	ctx.intercomfd = udp_open();
 
-	while ((c = getopt(argc, argv, "vhdp:s:D:i:")) != -1)
+	while ((c = getopt(argc, argv, "vhd:s:D:i:")) != -1)
 		switch (c) {
 			case 'd':
 				ctx.debug = true;

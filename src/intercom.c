@@ -67,6 +67,40 @@ bool join_mcast(const struct in6_addr addr, interface *iface) {
 	}
 }
 
+
+bool if_del(char *ifname) {
+	if (VECTOR_LEN(ctx.interfaces)) {
+		for (int i = 0; i < VECTOR_LEN(ctx.interfaces); i++) {
+			interface *iface = &VECTOR_INDEX(ctx.interfaces, i);
+			if (!strcmp(ifname, iface->ifname)) {
+				VECTOR_DELETE(ctx.interfaces, i);
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
+bool if_add(char *ifname) {
+	interface iface;
+
+	strncpy(iface.ifname, ifname, IFNAMSIZ);
+	iface.ifindex = if_nametoindex(ifname);
+	iface.ok=false;
+
+	if (iface.ifindex) {
+		VECTOR_ADD(ctx.interfaces, iface);
+		return true;
+	}
+
+	if (setsockopt(ctx.intercomfd, SOL_SOCKET, SO_BINDTODEVICE, iface.ifname, strnlen(iface.ifname, IFNAMSIZ))) {
+		exit_error("error on setsockopt (BIND)");
+	}
+
+	return false;
+}
+
+
 void intercom_update_interfaces(struct context *ctx) {
 	if (VECTOR_LEN(ctx->interfaces)) {
 		for (int i = 0; i < VECTOR_LEN(ctx->interfaces); i++) {
@@ -87,6 +121,8 @@ void intercom_send_packet(struct context *ctx, uint8_t *packet, ssize_t packet_l
 		interface *iface = &VECTOR_INDEX(ctx->interfaces, i);
 		ctx->groupaddr.sin6_scope_id = iface->ifindex;
 		ssize_t rc = sendto(ctx->intercomfd, packet, packet_len, 0, &ctx->groupaddr, sizeof(struct sockaddr_in6));
+		if (rc < 0)
+			perror("sendto");
 		log_debug("sent intercom packet on %s to %s rc: %zi\n", iface->ifname, print_ip(&ctx->groupaddr.sin6_addr), rc);
 	}
 	ctx->groupaddr.sin6_scope_id = 0;

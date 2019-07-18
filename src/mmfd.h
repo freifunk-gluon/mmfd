@@ -8,6 +8,7 @@
 #include <netinet/in.h>
 #include <net/if.h>
 #include "taskqueue.h"
+#include "socket.h"
 
 #define PORT 27275
 #define HELLO_INTERVAL 10
@@ -24,6 +25,7 @@ struct context {
 	VECTOR(uint64_t) seen;
 	VECTOR(interface) interfaces;
 	taskqueue_ctx taskqueue_ctx;;
+	socket_ctx socket_ctx;
 	struct sockaddr_in6 groupaddr;
 	int efd;
 	int tunfd;

@@ -35,7 +35,8 @@ void send_hello_task(void *d) {
 }
 
 void print_neighbours_task(void *d) {
-	print_neighbours();
+	if (ctx.verbose)
+		print_neighbours();
 	post_task(&ctx.taskqueue_ctx, NEIGHBOUR_PRINT_INTERVAL, 0, print_neighbours_task, NULL, NULL);
 }
 
@@ -47,13 +48,6 @@ int udp_open() {
 	int on = 1;
 	if(setsockopt(fd, IPPROTO_IPV6, IPV6_V6ONLY, &on, sizeof(on)))
 		exit_error("error on setsockopt (IPV6_V6ONLY)");
-
-	for (int i = 0; i < VECTOR_LEN(ctx.interfaces); i++) {
-		interface *iface =  &VECTOR_INDEX(ctx.interfaces, i);
-		if (setsockopt(fd, SOL_SOCKET, SO_BINDTODEVICE, iface->ifname, strnlen(iface->ifname, IFNAMSIZ))) {
-			exit_error("error on setsockopt (BIND)");
-		}
-	}
 
 	struct sockaddr_in6 server_addr = {};
 
@@ -343,6 +337,7 @@ void loop(struct context *ctx) {
 	change_fd(ctx->efd, ctx->intercomfd, EPOLL_CTL_ADD, EPOLLIN | EPOLLET);
 	change_fd(ctx->efd, ctx->tunfd, EPOLL_CTL_ADD, EPOLLIN | EPOLLET);
 	change_fd(ctx->efd, ctx->taskqueue_ctx.fd, EPOLL_CTL_ADD, EPOLLIN);
+	change_fd(ctx->efd, ctx->socket_ctx.fd, EPOLL_CTL_ADD, EPOLLIN);
 
 	int maxevents = 64;
 	struct epoll_event *events;
@@ -362,6 +357,9 @@ void loop(struct context *ctx) {
 			} else if (ctx->taskqueue_ctx.fd == events[i].data.fd) {
 				log_debug("event on taskqueue\n");
 				taskqueue_run(&ctx->taskqueue_ctx);
+			} else if (ctx->socket_ctx.fd == events[i].data.fd) {
+				log_debug("event on socketfd\n");
+				socket_handle_in(&ctx->socket_ctx);
 			} else if (ctx->tunfd == events[i].data.fd) {
 				log_debug("event on tunfd\n");
 				if (events[i].events & EPOLLIN)
@@ -378,27 +376,13 @@ void loop(struct context *ctx) {
 }
 
 void usage() {
-	puts("Usage: mmfd [-h] [-v] [-d] [-D <devicename>] [-p <port>] [-i <mesh-device>] [-i <mesh-device>]");
+	puts("Usage: mmfd [-h] [-v] [-d] [-D <devicename>] [-p <port>] [-i <mesh-device>] [-i <mesh-device>] [-s /path/to/socket]");
 	puts("  -v     verbose");
 	puts("  -d     debug");
 	puts("  -D     name of the mmfd device");
+	puts("  -s     socket on which the commands: verbosity [none, verbose,debug], add_meshif <ifname>, del_meshif <ifname> and get_meshifs are valid");
 	puts("  -i     bind to interface, may be specified multiple times");
 	puts("  -h     this help");
-}
-
-bool if_add(char *ifname) {
-	interface iface;
-
-	strncpy(iface.ifname, ifname, IFNAMSIZ);
-	iface.ifindex = if_nametoindex(ifname);
-	iface.ok=false;
-
-	if (iface.ifindex) {
-		VECTOR_ADD(ctx.interfaces, iface);
-		return true;
-	}
-
-	return false;
 }
 
 int main(int argc, char *argv[]) {
@@ -412,8 +396,9 @@ int main(int argc, char *argv[]) {
 	VECTOR_INIT(ctx.neighbours);
 	VECTOR_INIT(ctx.interfaces);
 
+	ctx.intercomfd = udp_open();
 
-	while ((c = getopt(argc, argv, "vhdp:D:i:")) != -1)
+	while ((c = getopt(argc, argv, "vhdp:s:D:i:")) != -1)
 		switch (c) {
 			case 'd':
 				ctx.debug = true;
@@ -426,6 +411,9 @@ int main(int argc, char *argv[]) {
 				exit(EXIT_SUCCESS);
 			case 'D':
 				snprintf(mmfd_device, IFNAMSIZ, "%s", optarg);
+				break;
+			case 's':
+				socket_init(&ctx.socket_ctx, optarg);
 				break;
 			case 'i':
 				if (!if_add(optarg))
@@ -441,7 +429,6 @@ int main(int argc, char *argv[]) {
 	close(rfd);
 	srand(seed);
 
-	ctx.intercomfd = udp_open();
 	ctx.tunfd = tun_open(mmfd_device, MTU, "/dev/net/tun");
 
 	if (ctx.tunfd == -1)
@@ -449,7 +436,7 @@ int main(int argc, char *argv[]) {
 
 	taskqueue_init(&ctx.taskqueue_ctx);
 
-	if (ctx.verbose)
+//	if (ctx.verbose)
 		print_neighbours_task(NULL);
 
 	intercom_init(&ctx);

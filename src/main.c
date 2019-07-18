@@ -436,8 +436,7 @@ int main(int argc, char *argv[]) {
 
 	taskqueue_init(&ctx.taskqueue_ctx);
 
-//	if (ctx.verbose)
-		print_neighbours_task(NULL);
+	print_neighbours_task(NULL);
 
 	intercom_init(&ctx);
 

@@ -9,4 +9,7 @@ typedef struct __attribute__((__packed__)) {
 
 bool intercom_send_hello();
 void intercom_init(struct context *ctx);
+bool if_add(char *ifname);
+bool if_del(char *ifname);
+void intercom_update_interfaces(struct context *ctx);
 

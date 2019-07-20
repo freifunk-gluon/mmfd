@@ -55,7 +55,6 @@ bool join_mcast(const struct in6_addr addr, interface *iface) {
 	else
 		mreq.ipv6mr_interface = 0;
 
-	setsockopt(ctx.intercomfd, IPPROTO_IPV6, IPV6_RECVPKTINFO, &mreq, sizeof(mreq));
 	if (setsockopt(ctx.intercomfd, IPPROTO_IPV6, IPV6_JOIN_GROUP, &mreq, sizeof(mreq)) == 0)
 		return true;
 	else if (errno == EADDRINUSE)

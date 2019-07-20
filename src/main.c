@@ -49,6 +49,9 @@ int udp_open() {
 	if(setsockopt(fd, IPPROTO_IPV6, IPV6_V6ONLY, &on, sizeof(on)))
 		exit_error("error on setsockopt (IPV6_V6ONLY)");
 
+	if (setsockopt(fd, IPPROTO_IPV6, IPV6_RECVPKTINFO, &on, sizeof(on)))
+		exit_error("error on setsockopt (IPV6_RECVPKTINFO)");
+
 	struct sockaddr_in6 server_addr = {};
 
 	server_addr.sin6_family = AF_INET6;

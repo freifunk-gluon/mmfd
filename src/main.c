@@ -213,7 +213,7 @@ void udp_handle_in(struct context *ctx, int fd) {
 				       }};
 
 		uint8_t cmbuf[CMSG_SPACE(sizeof(struct in6_pktinfo))];
-		memset(&src_addr.sin6_addr, 0, sizeof(struct in6_addr));
+
 		struct msghdr message = {
 		    .msg_name = &src_addr,
 		    .msg_namelen = sizeof(src_addr),

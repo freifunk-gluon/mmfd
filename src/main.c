@@ -237,16 +237,14 @@ void udp_handle_in(struct context *ctx, int fd) {
 			log_error("Message too long for buffer\n");
 		else {
 			bool is_packet_for_mcast = false;
-			for (struct cmsghdr *cmsg = CMSG_FIRSTHDR(&message); cmsg != NULL;
-			     cmsg = CMSG_NXTHDR(&message, cmsg)) {
+			for (struct cmsghdr *cmsg = CMSG_FIRSTHDR(&message); cmsg != NULL; cmsg = CMSG_NXTHDR(&message, cmsg)) {
 				if (!(cmsg->cmsg_level == IPPROTO_IPV6 && cmsg->cmsg_type == IPV6_PKTINFO)) {
 					log_debug("skipping\n");
 					continue;
 				}
 				struct in6_pktinfo *pi = (struct in6_pktinfo *)CMSG_DATA(cmsg);
 
-				if (memcmp(&pi->ipi6_addr, &ctx->groupaddr.sin6_addr,
-					   sizeof(ctx->groupaddr.sin6_addr)) == 0) {
+				if (memcmp(&pi->ipi6_addr, &ctx->groupaddr.sin6_addr, sizeof(ctx->groupaddr.sin6_addr)) == 0) {
 					is_packet_for_mcast = true;
 					log_verbose("received packet " FMT_NONCE " from %s for %s\n", hdr.nonce,
 						    print_ip(&src_addr.sin6_addr), print_ip(&pi->ipi6_addr));
@@ -354,9 +352,9 @@ void loop(struct context *ctx) {
 		for ( int i = 0; i < n; i++ ) {
 			if (ctx->intercomfd == events[i].data.fd) {
 				log_debug("event on intercomfd\n");
-				if (events[i].events & EPOLLIN)
+				if (events[i].events & EPOLLIN) {
 					udp_handle_in(ctx, events[i].data.fd);
-				
+				}
 			} else if (ctx->taskqueue_ctx.fd == events[i].data.fd) {
 				log_debug("event on taskqueue\n");
 				taskqueue_run(&ctx->taskqueue_ctx);

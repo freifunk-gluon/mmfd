@@ -340,7 +340,9 @@ void loop(struct context *ctx) {
 	change_fd(ctx->efd, ctx->intercomfd, EPOLL_CTL_ADD, EPOLLIN | EPOLLET);
 	change_fd(ctx->efd, ctx->tunfd, EPOLL_CTL_ADD, EPOLLIN | EPOLLET);
 	change_fd(ctx->efd, ctx->taskqueue_ctx.fd, EPOLL_CTL_ADD, EPOLLIN);
-	change_fd(ctx->efd, ctx->socket_ctx.fd, EPOLL_CTL_ADD, EPOLLIN);
+
+	if (ctx->socket_ctx.fd)
+		change_fd(ctx->efd, ctx->socket_ctx.fd, EPOLL_CTL_ADD, EPOLLIN);
 
 	int maxevents = 64;
 	struct epoll_event *events;

@@ -66,12 +66,28 @@ bool parse_command(char *cmd, enum socket_command *scmd) {
 		*scmd = DEL_MESHIF;
 	else if (!strncmp(cmd, "get_meshifs", 11))
 		*scmd = GET_MESHIFS;
+	else if (!strncmp(cmd, "get_neighbours", 14))
+		*scmd = GET_NEIGHBOURS;
 	else if (!strncmp(cmd, "add_meshif ", 11))
 		*scmd = ADD_MESHIF;
 	else
 		return false;
 
 	return true;
+}
+
+void socket_get_neighbours(struct json_object *obj) {
+	struct json_object *neighbours = json_object_new_array();
+	for (size_t i = 0; i < VECTOR_LEN(ctx.neighbours); i++) {
+		struct neighbour *neighbour = &VECTOR_INDEX(ctx.neighbours, i);
+
+		struct json_object *jneighbour = json_object_new_object();
+
+		json_object_object_add(jneighbour, "address",  json_object_new_string(print_ip(&neighbour->address.sin6_addr)));
+		json_object_object_add(jneighbour, "interface",  json_object_new_string(neighbour->ifname));
+		json_object_array_add(neighbours, jneighbour);
+	}
+	json_object_object_add(obj, "mmfd_neighbours", neighbours);
 }
 
 void socket_get_meshifs(struct json_object *obj) {
@@ -145,6 +161,10 @@ void socket_handle_in(socket_ctx *sctx) {
 			str_meshif = strndup(&line[11], IFNAMSIZ);
 			if (!if_del(str_meshif))
 				free(str_meshif);
+			break;
+		case GET_NEIGHBOURS:
+			socket_get_neighbours(retval);
+			dprintf(fd, "%s", json_object_to_json_string(retval));
 			break;
 	}
 

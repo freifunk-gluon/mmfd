@@ -20,6 +20,7 @@ enum socket_command {
 	ADD_MESHIF,
 	DEL_MESHIF,
 	GET_MESHIFS,
+	GET_NEIGHBOURS,
 	SET_VERBOSITY
 };
 

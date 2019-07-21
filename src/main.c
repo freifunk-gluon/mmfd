@@ -385,7 +385,7 @@ void usage() {
 	puts("  -v     verbose");
 	puts("  -d     debug");
 	puts("  -D     name of the mmfd device");
-	puts("  -s     socket on which the commands: verbosity [none, verbose,debug], add_meshif <ifname>, del_meshif <ifname> and get_meshifs are valid");
+	puts("  -s     socket on which the commands: verbosity [none, verbose,debug], add_meshif <ifname>, del_meshif <ifname>, get_neighbours and get_meshifs are valid");
 	puts("  -i     bind to interface, may be specified multiple times");
 	puts("  -h     this help");
 }

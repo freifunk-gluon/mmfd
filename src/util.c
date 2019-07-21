@@ -66,7 +66,7 @@ void print_packet(unsigned char *buf, int size) {
 
 int obtainrandom(void *buf, size_t buflen, unsigned int flags) {
 	int rc = 0;
-	while (rc != buflen) {
+	while (rc != (int)buflen) {
 		rc = (int)syscall(SYS_getrandom, buf, buflen, flags);
 		if (rc == -1) {
 			if (errno != ENOSYS) {

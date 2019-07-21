@@ -28,13 +28,13 @@ static void handle_udp_packet(struct context *ctx,  struct sockaddr_in6 *src_add
 bool is_seen(uint64_t nonce);
 struct context ctx = {};
 
-void send_hello_task(void *d) {
+void send_hello_task(__attribute__ ((unused)) void *d) {
 	intercom_send_hello();
 
 	post_task(&ctx.taskqueue_ctx, HELLO_INTERVAL, 0, send_hello_task, NULL, NULL);
 }
 
-void print_neighbours_task(void *d) {
+void print_neighbours_task(__attribute__ ((unused)) void *d) {
 	if (ctx.verbose)
 		print_neighbours();
 	post_task(&ctx.taskqueue_ctx, NEIGHBOUR_PRINT_INTERVAL, 0, print_neighbours_task, NULL, NULL);
@@ -134,7 +134,7 @@ bool is_seen(uint64_t nonce) {
 	while (VECTOR_LEN(ctx.seen) > 2000)
 		VECTOR_DELETE(ctx.seen, 0);
 
-	for (int i = 0; i < VECTOR_LEN(ctx.seen); i++) {
+	for (size_t i = 0; i < VECTOR_LEN(ctx.seen); i++) {
 		log_debug("checking whether we have seen packet " FMT_NONCE ", comparing with %llu\n", nonce, VECTOR_INDEX(ctx.seen, i));
 		if (VECTOR_INDEX(ctx.seen, i) == nonce) {
 			log_verbose("we already saw nonce " FMT_NONCE "\n", nonce);
@@ -173,7 +173,7 @@ bool forward_packet(struct context *ctx, uint8_t *packet, ssize_t len, uint64_t 
 		return true;
 	}
 
-	for (int i = 0; i < VECTOR_LEN(ctx->neighbours); i++) {
+	for (size_t i = 0; i < VECTOR_LEN(ctx->neighbours); i++) {
 		struct neighbour *neighbour = &VECTOR_INDEX(ctx->neighbours, i);
 
 		int forwardmessage =  src_addr ?
@@ -233,7 +233,7 @@ void udp_handle_in(struct context *ctx, int fd) {
 
 		if (count == -1)
 			perror("Error during recvmsg");
-		else if (count < sizeof(hdr))
+		else if (count > 0 && (size_t)count < sizeof(hdr))
 			continue;
 		else if (message.msg_flags & MSG_TRUNC)
 			log_error("Message too long for buffer\n");

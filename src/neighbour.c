@@ -12,7 +12,7 @@
 void print_neighbours() {
 	puts("neighbours:");
 
-	for (int i = 0; i < VECTOR_LEN(ctx.neighbours); i++) {
+	for (size_t i = 0; i < VECTOR_LEN(ctx.neighbours); i++) {
 		struct neighbour *neighbour = &VECTOR_INDEX(ctx.neighbours, i);
 
 		printf(" - %s on %s\n", print_ip(&neighbour->address.sin6_addr), neighbour->ifname);
@@ -29,7 +29,7 @@ struct neighbour *find_neighbour(struct context *ctx, struct in6_addr *address, 
 	if (!ifname || !address)
 		return NULL;
 
-	for (int i = 0; i < VECTOR_LEN(ctx->neighbours); i++) {
+	for (size_t i = 0; i < VECTOR_LEN(ctx->neighbours); i++) {
 		struct neighbour *neighbour = &VECTOR_INDEX(ctx->neighbours, i);
 
 		if (cmp_neighbour(neighbour, address, ifname))
@@ -84,7 +84,7 @@ struct neighbour *add_neighbour(struct context *ctx, struct in6_addr *address, c
 }
 
 void neighbour_remove(struct context *ctx, struct in6_addr *address, char *ifname) {
-	for (int i = 0; i < VECTOR_LEN(ctx->neighbours); i++) {
+	for (size_t i = 0; i < VECTOR_LEN(ctx->neighbours); i++) {
 		struct neighbour *neighbour = &VECTOR_INDEX(ctx->neighbours, i);
 
 		if (cmp_neighbour(neighbour, address, ifname)) {
@@ -120,7 +120,7 @@ void neighbour_change(struct context *ctx, struct in6_addr *address, char *ifnam
 }
 
 void flush_neighbours(struct context *ctx) {
-	for (int i = 0; i < VECTOR_LEN(ctx->neighbours); i++) {
+	for (size_t i = 0; i < VECTOR_LEN(ctx->neighbours); i++) {
 		struct neighbour *neighbour = &VECTOR_INDEX(ctx->neighbours, i);
 
 		free_neighbour_members(neighbour);

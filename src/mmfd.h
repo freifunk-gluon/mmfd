@@ -24,7 +24,7 @@ struct context {
 	VECTOR(struct neighbour) neighbours;
 	VECTOR(uint64_t) seen;
 	VECTOR(interface) interfaces;
-	taskqueue_ctx taskqueue_ctx;;
+	taskqueue_ctx taskqueue_ctx;
 	socket_ctx socket_ctx;
 	struct sockaddr_in6 groupaddr;
 	int efd;

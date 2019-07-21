@@ -5,7 +5,7 @@ IF(NOT PKG_CONFIG_FOUND)
         MESSAGE(FATAL_ERROR "Error: pkg-config not found on this system")
 ENDIF(NOT PKG_CONFIG_FOUND)
 
-set(MMFD_CFLAGS "-Wall -Os -std=gnu11 -D_GNU_SOURCE")
+set(MMFD_CFLAGS "-Wall -Wcast-align -Wextra -Os -std=gnu11 -D_GNU_SOURCE")
 pkg_check_modules(_JSON_C json-c)
 
 find_path(JSON_C_INCLUDE_DIR NAMES json-c/json.h HINTS ${_JSON_C_INCLUDE_DIRS})

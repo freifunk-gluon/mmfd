@@ -47,6 +47,7 @@ void socket_init(socket_ctx *ctx, char *path) {
 		switch (errno) {
 			case EADDRINUSE:
 				exit_error("unable to create status socket: the path `%s' already exists", path);
+				break;
 			default:
 				exit_errno("unable to create status socket");
 		}
@@ -76,7 +77,7 @@ bool parse_command(char *cmd, enum socket_command *scmd) {
 void socket_get_meshifs(struct json_object *obj) {
 	struct json_object *jmeshifs = json_object_new_array();
 
-	for (int i = 0; i < VECTOR_LEN(ctx.interfaces); i++) {
+	for (size_t i = 0; i < VECTOR_LEN(ctx.interfaces); i++) {
 		struct interface *iface = &VECTOR_INDEX(ctx.interfaces, i);
 		json_object_array_add(jmeshifs, json_object_new_string(iface->ifname));
 	}

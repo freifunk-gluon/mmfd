@@ -69,7 +69,7 @@ bool join_mcast(const struct in6_addr addr, interface *iface) {
 
 bool if_del(char *ifname) {
 	if (VECTOR_LEN(ctx.interfaces)) {
-		for (int i = 0; i < VECTOR_LEN(ctx.interfaces); i++) {
+		for (size_t i = 0; i < VECTOR_LEN(ctx.interfaces); i++) {
 			interface *iface = &VECTOR_INDEX(ctx.interfaces, i);
 			if (!strcmp(ifname, iface->ifname)) {
 				VECTOR_DELETE(ctx.interfaces, i);
@@ -102,7 +102,7 @@ bool if_add(char *ifname) {
 
 void intercom_update_interfaces(struct context *ctx) {
 	if (VECTOR_LEN(ctx->interfaces)) {
-		for (int i = 0; i < VECTOR_LEN(ctx->interfaces); i++) {
+		for (size_t i = 0; i < VECTOR_LEN(ctx->interfaces); i++) {
 			interface *iface = &VECTOR_INDEX(ctx->interfaces, i);
 
 			iface->ifindex = if_nametoindex(iface->ifname);
@@ -116,7 +116,7 @@ void intercom_update_interfaces(struct context *ctx) {
 }
 
 void intercom_send_packet_allif(struct context *ctx, uint8_t *packet, ssize_t packet_len) {
-	for (int i = 0; i < VECTOR_LEN(ctx->interfaces); i++) {
+	for (size_t i = 0; i < VECTOR_LEN(ctx->interfaces); i++) {
 		interface *iface = &VECTOR_INDEX(ctx->interfaces, i);
 		ctx->groupaddr.sin6_scope_id = iface->ifindex;
 		ssize_t rc = sendto(ctx->intercomfd, packet, packet_len, 0, &ctx->groupaddr, sizeof(struct sockaddr_in6));

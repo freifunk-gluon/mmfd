@@ -167,6 +167,7 @@ bool forward_packet(struct context *ctx, uint8_t *packet, ssize_t len, uint64_t 
 	};
 
 	struct ipv6hdr *packethdr = (struct ipv6hdr*)packet;
+
 	if (VECTOR_LEN(ctx->neighbours) == 0) {
 		log_verbose("No neighbour found. Cannot forward packet with destaddr=%s, nonce=" FMT_NONCE ".\n", print_ip(&packethdr->daddr), nonce);
 		return true;
@@ -188,13 +189,14 @@ bool forward_packet(struct context *ctx, uint8_t *packet, ssize_t len, uint64_t 
 				.msg_iovlen = 2,
 			};
 
-			log_verbose("Forwarding packet from %s with destaddr=%s, nonce=" FMT_NONCE " to %s%%%s.\n",
-				    src_addr ? print_ip(&src_addr->sin6_addr) : "?", print_ip(&packethdr->daddr), nonce,
-				    print_ip(&neighbour->address.sin6_addr), neighbour->ifname);
+			log_verbose("Forwarding packet from %s with destaddr=%s, nonce=" FMT_NONCE " to %s%%%s [%d].\n",
+				    src_addr ? print_ip(&src_addr->sin6_addr) : "local", print_ip(&packethdr->daddr), nonce,
+				    print_ip(&neighbour->address.sin6_addr), neighbour->ifname, neighbour->address.sin6_scope_id);
 			if (sendmsg(ctx->intercomfd, &msg, 0) < 0)
 				perror("sendmsg");
 		}
 	}
+
 	return true;
 }
 

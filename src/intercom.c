@@ -7,7 +7,7 @@
 
 #define INTERCOM_GROUP "ff02::6a8b"
 
-void intercom_send_packet(struct context *ctx, uint8_t *packet, ssize_t packet_len);
+void intercom_send_packet_allif(struct context *ctx, uint8_t *packet, ssize_t packet_len);
 
 int assemble_header(intercom_packet_hello *packet) {
 	obtainrandom(&packet->hdr.nonce, sizeof(packet->hdr.nonce), 0);
@@ -23,7 +23,7 @@ bool intercom_send_hello() {
 	log_verbose("sending hello " FMT_NONCE "\n", packet->hdr.nonce);
 
 
-	intercom_send_packet(&ctx, (uint8_t *)packet, currentoffset);
+	intercom_send_packet_allif(&ctx, (uint8_t *)packet, currentoffset);
 
 	free(packet);
 	return true;
@@ -115,7 +115,7 @@ void intercom_update_interfaces(struct context *ctx) {
 	}
 }
 
-void intercom_send_packet(struct context *ctx, uint8_t *packet, ssize_t packet_len) {
+void intercom_send_packet_allif(struct context *ctx, uint8_t *packet, ssize_t packet_len) {
 	for (int i = 0; i < VECTOR_LEN(ctx->interfaces); i++) {
 		interface *iface = &VECTOR_INDEX(ctx->interfaces, i);
 		ctx->groupaddr.sin6_scope_id = iface->ifindex;

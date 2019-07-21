@@ -63,7 +63,7 @@ void neighbour_remove_task(void *d) {
 	neighbour_remove(&ctx, &(n->address.sin6_addr), n->ifname);
 }
 
-struct neighbour *add_neighbour(struct context *ctx, struct in6_addr *address, char *ifname) {
+struct neighbour *add_neighbour(struct context *ctx, struct in6_addr *address, char *ifname, size_t ifindex) {
 	struct neighbour neighbour = {
 		.ifname = mmfd_strdup(ifname),
 		.address = {},
@@ -73,6 +73,7 @@ struct neighbour *add_neighbour(struct context *ctx, struct in6_addr *address, c
 	memcpy(&neighbour.address.sin6_addr, address, sizeof(struct in6_addr));
 	neighbour.address.sin6_family = AF_INET6;
 	neighbour.address.sin6_port = htons(PORT);
+	neighbour.address.sin6_scope_id = ifindex;
 
 
 	struct neighbour *neighbour_task_data = mmfd_alloc(sizeof(struct neighbour));
@@ -102,7 +103,7 @@ void neighbour_add(struct context *ctx, struct in6_addr *address, char *ifname) 
 		return;
 	}
 
-	add_neighbour(ctx, address, ifname);
+	add_neighbour(ctx, address, ifname, ifindex);
 }
 
 void neighbour_change(struct context *ctx, struct in6_addr *address, char *ifname) {

@@ -59,7 +59,7 @@ void free_neighbour_task(void *neighbour) {
 
 void neighbour_remove_task(void *d) {
 	struct neighbour *n = (struct neighbour*)d;
-	log_verbose("removing neighbour %s(s)\n", print_ip(&n->address.sin6_addr), n->ifname);
+	log_verbose("removing neighbour %s%%%s\n", print_ip(&n->address.sin6_addr), n->ifname);
 	neighbour_remove(&ctx, &(n->address.sin6_addr), n->ifname);
 }
 

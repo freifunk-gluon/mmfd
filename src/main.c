@@ -189,9 +189,10 @@ bool forward_packet(struct context *ctx, uint8_t *packet, ssize_t len, uint64_t 
 				.msg_iovlen = 2,
 			};
 
-			log_verbose("Forwarding packet from %s with destaddr=%s, nonce=" FMT_NONCE " to %s%%%s [%d].\n",
+			log_verbose("Forwarding packet from %s with destaddr=%s, nonce=" FMT_NONCE " to %s%%%s [%zd].\n",
 				    src_addr ? print_ip(&src_addr->sin6_addr) : "local", print_ip(&packethdr->daddr), nonce,
 				    print_ip(&neighbour->address.sin6_addr), neighbour->ifname, neighbour->address.sin6_scope_id);
+
 			if (sendmsg(ctx->intercomfd, &msg, 0) < 0)
 				perror("sendmsg");
 		}
@@ -226,7 +227,7 @@ void udp_handle_in(struct context *ctx, int fd) {
 		};
 
 		ssize_t count = recvmsg(fd, &message, 0);
-		log_debug("read %lld bytes\n", count);
+		log_debug("read %zd bytes\n", count);
 
 		if (count == -1 && errno == EAGAIN)
 			break;

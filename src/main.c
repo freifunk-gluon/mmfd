@@ -58,6 +58,15 @@ int udp_open() {
 	server_addr.sin6_addr = in6addr_any;
 	server_addr.sin6_port = htons(PORT);
 
+	if (VECTOR_LEN(ctx.interfaces)) {
+		for (size_t i = 0; i < VECTOR_LEN(ctx.interfaces); i++) {
+			interface *iface = &VECTOR_INDEX(ctx.interfaces, i);
+			if (setsockopt(fd, SOL_SOCKET, SO_BINDTODEVICE, iface->ifname, strnlen(iface->ifname, IFNAMSIZ))) {
+				exit_error("error on setsockopt (BIND)");
+			}
+		}
+	}
+
 	if (bind(fd, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0)
 		exit_errno("bind failed");
 
@@ -402,8 +411,6 @@ int main(int argc, char *argv[]) {
 	VECTOR_INIT(ctx.neighbours);
 	VECTOR_INIT(ctx.interfaces);
 
-	ctx.intercomfd = udp_open();
-
 	while ((c = getopt(argc, argv, "vhds:D:i:")) != -1)
 		switch (c) {
 			case 'd':
@@ -428,6 +435,8 @@ int main(int argc, char *argv[]) {
 			default:
 				fprintf(stderr, "Invalid parameter %c ignored.\n", c);
 		}
+
+	ctx.intercomfd = udp_open();
 
 	int rfd = open("/dev/urandom", O_RDONLY);
 	unsigned int seed;

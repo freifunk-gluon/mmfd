@@ -92,10 +92,6 @@ bool if_add(char *ifname) {
 		return true;
 	}
 
-	if (setsockopt(ctx.intercomfd, SOL_SOCKET, SO_BINDTODEVICE, iface.ifname, strnlen(iface.ifname, IFNAMSIZ))) {
-		exit_error("error on setsockopt (BIND)");
-	}
-
 	return false;
 }
 

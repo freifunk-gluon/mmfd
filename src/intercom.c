@@ -115,7 +115,7 @@ void intercom_send_packet_allif(struct context *ctx, uint8_t *packet, ssize_t pa
 	for (size_t i = 0; i < VECTOR_LEN(ctx->interfaces); i++) {
 		interface *iface = &VECTOR_INDEX(ctx->interfaces, i);
 		ctx->groupaddr.sin6_scope_id = iface->ifindex;
-		ssize_t rc = sendto(ctx->intercomfd, packet, packet_len, 0, &ctx->groupaddr, sizeof(struct sockaddr_in6));
+		ssize_t rc = sendto(ctx->intercomfd, packet, packet_len, 0, (struct sockaddr*)&ctx->groupaddr, sizeof(struct sockaddr_in6));
 		if (rc < 0)
 			perror("sendto");
 		log_debug("sent intercom packet on %s to %s rc: %zi\n", iface->ifname, print_ip(&ctx->groupaddr.sin6_addr), rc);

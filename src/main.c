@@ -144,7 +144,7 @@ bool is_seen(uint64_t nonce) {
 		VECTOR_DELETE(ctx.seen, 0);
 
 	for (size_t i = 0; i < VECTOR_LEN(ctx.seen); i++) {
-		log_debug("checking whether we have seen packet " FMT_NONCE ", comparing with %llu\n", nonce, VECTOR_INDEX(ctx.seen, i));
+		log_debug("checking whether we have seen packet " FMT_NONCE ", comparing with " FMT_NONCE "\n", nonce, VECTOR_INDEX(ctx.seen, i));
 		if (VECTOR_INDEX(ctx.seen, i) == nonce) {
 			log_verbose("we already saw nonce " FMT_NONCE "\n", nonce);
 			return true;
@@ -154,11 +154,6 @@ bool is_seen(uint64_t nonce) {
 }
 
 bool forward_packet(struct context *ctx, uint8_t *packet, ssize_t len, uint64_t nonce, struct sockaddr_in6 *src_addr) {
-
-	if (is_seen(nonce))
-		return false;
-
-	VECTOR_ADD(ctx->seen, nonce);
 
 	struct header hdr = {
 		.nonce = nonce,
@@ -213,7 +208,7 @@ bool forward_packet(struct context *ctx, uint8_t *packet, ssize_t len, uint64_t 
 void udp_handle_in(struct context *ctx, int fd) {
 	log_debug("handling intercom packet\n");
 	while (1) {
-		struct header hdr;
+		struct header hdr = {};
 		uint8_t buffer[1500];
 		struct sockaddr_in6 src_addr = {};
 
@@ -248,30 +243,27 @@ void udp_handle_in(struct context *ctx, int fd) {
 		else if (message.msg_flags & MSG_TRUNC)
 			log_error("Message too long for buffer\n");
 		else {
-			bool is_packet_for_mcast = false;
+			if (is_seen(hdr.nonce))
+				continue;
+			VECTOR_ADD(ctx->seen, hdr.nonce);
+
 			for (struct cmsghdr *cmsg = CMSG_FIRSTHDR(&message); cmsg != NULL; cmsg = CMSG_NXTHDR(&message, cmsg)) {
-				if (!(cmsg->cmsg_level == IPPROTO_IPV6 && cmsg->cmsg_type == IPV6_PKTINFO)) {
-					log_debug("skipping\n");
-					continue;
-				}
-				struct in6_pktinfo *pi = (struct in6_pktinfo *)CMSG_DATA(cmsg);
+				if ((cmsg->cmsg_level == IPPROTO_IPV6 && cmsg->cmsg_type == IPV6_PKTINFO)) {
+					struct in6_pktinfo *pi = (struct in6_pktinfo *)CMSG_DATA(cmsg);
 
-				if (memcmp(&pi->ipi6_addr, &ctx->groupaddr.sin6_addr, sizeof(ctx->groupaddr.sin6_addr)) == 0) {
-					is_packet_for_mcast = true;
-					log_verbose("received packet " FMT_NONCE " from %s for %s\n", hdr.nonce,
-						    print_ip(&src_addr.sin6_addr), print_ip(&pi->ipi6_addr));
-					if (is_seen(hdr.nonce)) {
-						continue;
+					bool is_packet_dest_mcast = memcmp(&pi->ipi6_addr, &ctx->groupaddr.sin6_addr, sizeof(ctx->groupaddr.sin6_addr)) == 0;
+
+					if (is_packet_dest_mcast) {
+						log_verbose("received packet " FMT_NONCE " from %s for %s\n", hdr.nonce,
+							    print_ip(&src_addr.sin6_addr), print_ip(&pi->ipi6_addr));
+						char buf[IFNAMSIZ];
+						char *ifname = if_indextoname(pi->ipi6_ifindex, buf);
+						neighbour_change(ctx, &src_addr.sin6_addr, ifname);
+					} else {
+						handle_udp_packet(ctx, &src_addr, &hdr, buffer, count - sizeof(hdr));
 					}
-					VECTOR_ADD(ctx->seen, hdr.nonce);
-
-					char buf[IFNAMSIZ];
-					char *ifname = if_indextoname(pi->ipi6_ifindex, buf);
-					neighbour_change(ctx, &src_addr.sin6_addr, ifname);
+					break;
 				}
-			}
-			if (!is_packet_for_mcast) {
-				handle_udp_packet(ctx, &src_addr, &hdr, buffer, count - sizeof(hdr));
 			}
 		}
 	}
@@ -288,6 +280,7 @@ void handle_packet(struct context *ctx, uint8_t *packet, ssize_t len) {
 	uint64_t nonce;
 	obtainrandom(&nonce, sizeof(nonce), 0);
 
+	VECTOR_ADD(ctx->seen, nonce);
 	forward_packet(ctx, packet, len, nonce, NULL);
 }
 

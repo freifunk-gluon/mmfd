@@ -12,7 +12,7 @@
 
 #define PORT 27275
 #define HELLO_INTERVAL 10
-#define FMT_NONCE "0x%08x"
+#define FMT_NONCE "0x%08"PRIx64
 
 typedef struct interface {
 	char ifname[IFNAMSIZ];

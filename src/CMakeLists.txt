@@ -1,5 +1,13 @@
 list(APPEND CMAKE_REQUIRED_DEFINITIONS)
 
+if(BUILD_STATIC)
+	message("This build will statically link all libraries")
+	SET(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
+	SET(BUILD_SHARED_LIBS OFF)
+	SET(CMAKE_EXE_LINKER_FLAGS "-static")
+endif(BUILD_STATIC)
+
+
 INCLUDE(FindPkgConfig)
 IF(NOT PKG_CONFIG_FOUND)
         MESSAGE(FATAL_ERROR "Error: pkg-config not found on this system")

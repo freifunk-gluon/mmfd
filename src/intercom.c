@@ -5,6 +5,9 @@
 #include "alloc.h"
 #include "util.h"
 
+#include <search.h>
+
+
 #define INTERCOM_GROUP "ff02::6a8b"
 
 void intercom_send_packet_allif(struct context *ctx, uint8_t *packet, ssize_t packet_len);
@@ -80,10 +83,19 @@ bool if_del(char *ifname) {
 	return false;
 }
 
+int if_compare_by_name(const interface *a, const interface *b) {
+	return strncmp(a->ifname, b->ifname, IFNAMSIZ);
+}
+
 bool if_add(char *ifname) {
 	interface iface;
 
 	strncpy(iface.ifname, ifname, IFNAMSIZ);
+
+	struct interface *ret = (struct interface *)VECTOR_LSEARCH(&iface, ctx.interfaces, if_compare_by_name);
+	if (ret)
+		return false;
+
 	iface.ifindex = if_nametoindex(ifname);
 	iface.ok=false;
 

@@ -159,8 +159,12 @@ void socket_handle_in(socket_ctx *sctx) {
 			break;
 		case DEL_MESHIF:
 			str_meshif = strndup(&line[11], IFNAMSIZ);
+			if (setsockopt(fd, SOL_SOCKET, SO_BINDTODEVICE, str_meshif, 0)) {
+				exit_error("error on setsockopt (BIND)");
+			}
 			if (!if_del(str_meshif))
 				free(str_meshif);
+			intercom_update_interfaces(&ctx);
 			break;
 		case GET_NEIGHBOURS:
 			socket_get_neighbours(retval);

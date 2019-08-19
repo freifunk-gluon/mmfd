@@ -95,7 +95,6 @@ bool if_add(char *ifname) {
 	return false;
 }
 
-
 void intercom_update_interfaces(struct context *ctx) {
 	if (VECTOR_LEN(ctx->interfaces)) {
 		for (size_t i = 0; i < VECTOR_LEN(ctx->interfaces); i++) {
@@ -105,8 +104,16 @@ void intercom_update_interfaces(struct context *ctx) {
 
 			if (iface->ifindex)
 				iface->ok = join_mcast(ctx->groupaddr.sin6_addr, iface);
+
+			if (setsockopt(ctx->intercomfd, SOL_SOCKET, SO_BINDTODEVICE, iface->ifname,
+				       strnlen(iface->ifname, IFNAMSIZ))) {
+				exit_error("error on setsockopt (BIND)");
+			}
 		}
 	} else {
+		if (setsockopt(ctx->intercomfd, SOL_SOCKET, SO_BINDTODEVICE, "lo", 3)) {
+			exit_error("error on setsockopt (BIND)");
+		}
 		join_mcast(ctx->groupaddr.sin6_addr, 0);
 	}
 }

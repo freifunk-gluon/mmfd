@@ -389,7 +389,7 @@ void usage() {
 	puts("  -d     debug");
 	puts("  -D     name of the mmfd device");
 	puts("  -s     socket on which the commands: verbosity [none, verbose,debug], add_meshif <ifname>, del_meshif <ifname>, get_neighbours and get_meshifs are valid");
-	puts("  -i     bind to interface, may be specified multiple times");
+	puts("  -i     bind to interface, may be specified multiple times, default: lo");
 	puts("  -h     this help");
 }
 
@@ -423,7 +423,7 @@ int main(int argc, char *argv[]) {
 				break;
 			case 'i':
 				if (!if_add(optarg))
-					fprintf(stderr, "Could not find device %s. ignoring.\n", optarg);
+					fprintf(stderr, "Could not add device %s. ignoring.\n", optarg);
 				break;
 			default:
 				fprintf(stderr, "Invalid parameter %c ignored.\n", c);

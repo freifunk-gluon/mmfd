@@ -74,7 +74,7 @@ bool if_del(char *ifname) {
 	if (VECTOR_LEN(ctx.interfaces)) {
 		for (size_t i = 0; i < VECTOR_LEN(ctx.interfaces); i++) {
 			interface *iface = &VECTOR_INDEX(ctx.interfaces, i);
-			if (!strcmp(ifname, iface->ifname)) {
+			if (!strncmp(ifname, iface->ifname, IFNAMSIZ)) {
 				VECTOR_DELETE(ctx.interfaces, i);
 				return true;
 			}

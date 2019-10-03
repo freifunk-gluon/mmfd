@@ -145,11 +145,8 @@ void socket_handle_in(socket_ctx *sctx) {
 
 			break;
 		case ADD_MESHIF:
-			str_meshif = strndup(&line[11], IFNAMSIZ);
-			if (!if_add(str_meshif)) {
-				free(str_meshif);
-				break;
-			} else {
+			str_meshif = &line[11];
+			if (if_add(str_meshif)) {
 				intercom_update_interfaces(&ctx);
 			}
 			break;
@@ -158,13 +155,9 @@ void socket_handle_in(socket_ctx *sctx) {
 			dprintf(fd, "%s", json_object_to_json_string(retval));
 			break;
 		case DEL_MESHIF:
-			str_meshif = strndup(&line[11], IFNAMSIZ);
-			if (setsockopt(fd, SOL_SOCKET, SO_BINDTODEVICE, str_meshif, 0)) {
-				exit_error("error on setsockopt (BIND)");
-			}
-			if (!if_del(str_meshif))
-				free(str_meshif);
-			intercom_update_interfaces(&ctx);
+			str_meshif = &line[11];
+			if (if_del(str_meshif))
+				intercom_update_interfaces(&ctx);
 			break;
 		case GET_NEIGHBOURS:
 			socket_get_neighbours(retval);

@@ -10,6 +10,8 @@
 #include "taskqueue.h"
 #include "socket.h"
 
+#include <sys/epoll.h>
+
 #define PORT 27275
 #define HELLO_INTERVAL 10
 #define FMT_NONCE "0x%08"PRIx64
@@ -17,6 +19,7 @@
 typedef struct interface {
 	char ifname[IFNAMSIZ];
 	int ifindex;
+	int unicastfd;
 	bool ok;
 } interface;
 
@@ -29,7 +32,6 @@ struct context {
 	struct sockaddr_in6 groupaddr;
 	int efd;
 	int tunfd;
-	int intercomfd;
 	bool verbose;
 	bool debug;
 };
@@ -45,3 +47,6 @@ struct neighbour {
 	char *ifname;
 	taskqueue_t *timeout_task;
 };
+
+void change_fd(int efd, int fd, int type, uint32_t events);
+

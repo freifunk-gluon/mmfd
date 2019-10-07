@@ -17,13 +17,11 @@
 #include <sys/socket.h>
 #include <linux/if_tun.h>
 #include <netinet/in.h>
-#include <sys/epoll.h>
 #include <sys/timerfd.h>
 
 #define NEIGHBOUR_PRINT_INTERVAL 5
 #define MTU 1280
 
-static void change_fd(int efd, int fd, int type, uint32_t events);
 static void handle_udp_packet(struct context *ctx,  struct sockaddr_in6 *src_addr, struct header *hdr, uint8_t *packet, ssize_t len);
 bool is_seen(uint64_t nonce);
 struct context ctx = {};
@@ -38,39 +36,6 @@ void print_neighbours_task(__attribute__ ((unused)) void *d) {
 	if (ctx.verbose)
 		print_neighbours();
 	post_task(&ctx.taskqueue_ctx, NEIGHBOUR_PRINT_INTERVAL, 0, print_neighbours_task, NULL, NULL);
-}
-
-int udp_open() {
-	int fd = socket(PF_INET6, SOCK_DGRAM | SOCK_NONBLOCK, 0);
-
-	if (fd < 0)
-		exit_error("creating socket");
-	int on = 1;
-	if(setsockopt(fd, IPPROTO_IPV6, IPV6_V6ONLY, &on, sizeof(on)))
-		exit_error("error on setsockopt (IPV6_V6ONLY)");
-
-	if (setsockopt(fd, IPPROTO_IPV6, IPV6_RECVPKTINFO, &on, sizeof(on)))
-		exit_error("error on setsockopt (IPV6_RECVPKTINFO)");
-
-	struct sockaddr_in6 server_addr = {};
-
-	server_addr.sin6_family = AF_INET6;
-	server_addr.sin6_addr = in6addr_any;
-	server_addr.sin6_port = htons(PORT);
-
-	if (VECTOR_LEN(ctx.interfaces)) {
-		for (size_t i = 0; i < VECTOR_LEN(ctx.interfaces); i++) {
-			interface *iface = &VECTOR_INDEX(ctx.interfaces, i);
-			if (setsockopt(fd, SOL_SOCKET, SO_BINDTODEVICE, iface->ifname, strnlen(iface->ifname, IFNAMSIZ))) {
-				exit_error("error on setsockopt (BIND)");
-			}
-		}
-	}
-
-	if (bind(fd, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0)
-		exit_errno("bind failed");
-
-	return fd;
 }
 
 /**
@@ -197,7 +162,8 @@ bool forward_packet(struct context *ctx, uint8_t *packet, ssize_t len, uint64_t 
 				    src_addr ? print_ip(&src_addr->sin6_addr) : "local", print_ip(&packethdr->daddr), nonce,
 				    print_ip(&neighbour->address.sin6_addr), neighbour->ifname, neighbour->address.sin6_scope_id);
 
-			if (sendmsg(ctx->intercomfd, &msg, 0) < 0)
+
+			if (sendmsg(find_interface_by_name(neighbour->ifname)->unicastfd, &msg, 0) < 0)
 				perror("sendmsg");
 		}
 	}
@@ -334,13 +300,28 @@ void change_fd(int efd, int fd, int type, uint32_t events) {
 		exit_error("epoll_ctl");
 }
 
+bool is_nic_fd(int fd) {
+	bool ret = false;
+	for (size_t i = 0; !ret && i < VECTOR_LEN(ctx.interfaces); i++) {
+		interface *iface = &VECTOR_INDEX(ctx.interfaces, i);
+		if (iface->unicastfd == fd) {
+			ret = true;
+		}
+	}
+	return ret;
+}
+
 void loop(struct context *ctx) {
 	ctx->efd = epoll_create(1);
 
 	if (ctx->efd == -1)
 		exit_errno("epoll_create");
 
-	change_fd(ctx->efd, ctx->intercomfd, EPOLL_CTL_ADD, EPOLLIN | EPOLLET);
+	for (size_t i = 0; i < VECTOR_LEN(ctx->interfaces); i++) {
+		interface *iface = &VECTOR_INDEX(ctx->interfaces, i);
+		change_fd(ctx->efd, iface->unicastfd, EPOLL_CTL_ADD, EPOLLIN | EPOLLET);
+	}
+
 	change_fd(ctx->efd, ctx->tunfd, EPOLL_CTL_ADD, EPOLLIN | EPOLLET);
 	change_fd(ctx->efd, ctx->taskqueue_ctx.fd, EPOLL_CTL_ADD, EPOLLIN);
 
@@ -357,7 +338,7 @@ void loop(struct context *ctx) {
 		log_debug("%i\n", n);
 
 		for ( int i = 0; i < n; i++ ) {
-			if (ctx->intercomfd == events[i].data.fd) {
+			if (is_nic_fd(events[i].data.fd)) {
 				log_debug("event on intercomfd\n");
 				if (events[i].events & EPOLLIN) {
 					udp_handle_in(ctx, events[i].data.fd);
@@ -428,8 +409,6 @@ int main(int argc, char *argv[]) {
 			default:
 				fprintf(stderr, "Invalid parameter %c ignored.\n", c);
 		}
-
-	ctx.intercomfd = udp_open();
 
 	int rfd = open("/dev/urandom", O_RDONLY);
 	unsigned int seed;

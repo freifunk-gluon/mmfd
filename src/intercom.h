@@ -12,4 +12,8 @@ void intercom_init(struct context *ctx);
 bool if_add(char *ifname);
 bool if_del(char *ifname);
 void intercom_update_interfaces(struct context *ctx);
+interface *find_interface_by_name(const char *ifname);
+bool join_mcast(const struct in6_addr addr, interface *iface);
+void udp_open(interface *iface);
+
 

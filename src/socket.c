@@ -94,7 +94,7 @@ void socket_get_meshifs(struct json_object *obj) {
 	struct json_object *jmeshifs = json_object_new_array();
 
 	for (size_t i = 0; i < VECTOR_LEN(ctx.interfaces); i++) {
-		struct interface *iface = &VECTOR_INDEX(ctx.interfaces, i);
+		interface *iface = &VECTOR_INDEX(ctx.interfaces, i);
 		json_object_array_add(jmeshifs, json_object_new_string(iface->ifname));
 	}
 	json_object_object_add(obj, "mesh_interfaces", jmeshifs);

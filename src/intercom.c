@@ -25,7 +25,6 @@ bool intercom_send_hello() {
 	VECTOR_ADD(ctx.seen, packet->hdr.nonce);
 	log_verbose("sending hello " FMT_NONCE "\n", packet->hdr.nonce);
 
-
 	intercom_send_packet_allif(&ctx, (uint8_t *)packet, currentoffset);
 
 	free(packet);
@@ -42,11 +41,21 @@ bool leave_mcast(const struct in6_addr addr, interface *iface) {
 	mreq.ipv6mr_multiaddr = addr;
 	mreq.ipv6mr_interface = iface->ifindex;
 
-	if (setsockopt(ctx.intercomfd, IPPROTO_IPV6, IPV6_LEAVE_GROUP, &mreq, sizeof(mreq)) == 0)
+	if (setsockopt(iface->unicastfd, IPPROTO_IPV6, IPV6_LEAVE_GROUP, &mreq, sizeof(mreq)) == 0)
 		return true;
 
 	log_error("Could not leave multicast group on %s: ", iface->ifname);
 	return false;
+}
+
+interface *find_interface_by_name(const char *ifname) {
+	interface *ret = NULL;
+	for (size_t i = 0; !ret && i < VECTOR_LEN(ctx.interfaces); i++) {
+		interface *iface = &VECTOR_INDEX(ctx.interfaces, i);
+		if (!strncmp(iface->ifname, ifname, IFNAMSIZ)) ret = iface;
+	}
+
+	return ret;
 }
 
 bool join_mcast(const struct in6_addr addr, interface *iface) {
@@ -58,7 +67,8 @@ bool join_mcast(const struct in6_addr addr, interface *iface) {
 	else
 		mreq.ipv6mr_interface = 0;
 
-	if (setsockopt(ctx.intercomfd, IPPROTO_IPV6, IPV6_JOIN_GROUP, &mreq, sizeof(mreq)) == 0)
+
+	if (iface && setsockopt(iface->unicastfd, IPPROTO_IPV6, IPV6_JOIN_GROUP, &mreq, sizeof(mreq)) == 0)
 		return true;
 	else if (errno == EADDRINUSE)
 		return true;
@@ -87,6 +97,39 @@ int if_compare_by_name(const interface *a, const interface *b) {
 	return strncmp(a->ifname, b->ifname, IFNAMSIZ);
 }
 
+int socket_prepare(interface *iface) {
+	int fd = socket(PF_INET6, SOCK_DGRAM | SOCK_NONBLOCK, 0);
+	if (fd < 0) exit_error("creating socket");
+	int on = 1;
+	if (setsockopt(fd, IPPROTO_IPV6, IPV6_V6ONLY, &on, sizeof(on)))
+		exit_error("error on setsockopt (IPV6_V6ONLY)");
+
+	if (setsockopt(fd, IPPROTO_IPV6, IPV6_RECVPKTINFO, &on, sizeof(on)))
+		exit_error("error on setsockopt (IPV6_RECVPKTINFO)");
+
+	if (setsockopt(fd, SOL_SOCKET, SO_BINDTODEVICE, iface->ifname,
+		       strnlen(iface->ifname, IFNAMSIZ))) {
+		exit_error("error on setsockopt (BIND)");
+	}
+
+	return fd;
+}
+
+void udp_open(interface *iface) {
+	iface->unicastfd = socket_prepare(iface);
+
+	struct sockaddr_in6 server_addr = {};
+	server_addr.sin6_family = AF_INET6;
+	server_addr.sin6_addr = in6addr_any;
+	server_addr.sin6_port = htons(PORT);
+
+	if (bind(iface->unicastfd, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0)
+		exit_errno("bind failed");
+
+	iface->ok = join_mcast(ctx.groupaddr.sin6_addr, iface);
+}
+
+
 bool if_add(char *ifname) {
 	interface iface;
 
@@ -100,6 +143,8 @@ bool if_add(char *ifname) {
 	iface.ok=false;
 
 	if (iface.ifindex) {
+		udp_open(&iface);
+		change_fd(ctx.efd, iface.unicastfd, EPOLL_CTL_ADD, EPOLLIN);
 		VECTOR_ADD(ctx.interfaces, iface);
 		return true;
 	}
@@ -117,16 +162,11 @@ void intercom_update_interfaces(struct context *ctx) {
 			if (iface->ifindex)
 				iface->ok = join_mcast(ctx->groupaddr.sin6_addr, iface);
 
-			if (setsockopt(ctx->intercomfd, SOL_SOCKET, SO_BINDTODEVICE, iface->ifname,
+			if (setsockopt(iface->unicastfd, SOL_SOCKET, SO_BINDTODEVICE, iface->ifname,
 				       strnlen(iface->ifname, IFNAMSIZ))) {
 				exit_error("error on setsockopt (BIND)");
 			}
 		}
-	} else {
-		if (setsockopt(ctx->intercomfd, SOL_SOCKET, SO_BINDTODEVICE, "lo", 3)) {
-			exit_error("error on setsockopt (BIND)");
-		}
-		join_mcast(ctx->groupaddr.sin6_addr, 0);
 	}
 }
 
@@ -134,7 +174,7 @@ void intercom_send_packet_allif(struct context *ctx, uint8_t *packet, ssize_t pa
 	for (size_t i = 0; i < VECTOR_LEN(ctx->interfaces); i++) {
 		interface *iface = &VECTOR_INDEX(ctx->interfaces, i);
 		ctx->groupaddr.sin6_scope_id = iface->ifindex;
-		ssize_t rc = sendto(ctx->intercomfd, packet, packet_len, 0, (struct sockaddr*)&ctx->groupaddr, sizeof(struct sockaddr_in6));
+		ssize_t rc = sendto(iface->unicastfd, packet, packet_len, 0, (struct sockaddr*)&ctx->groupaddr, sizeof(struct sockaddr_in6));
 		if (rc < 0)
 			perror("sendto");
 		log_debug("sent intercom packet on %s to %s rc: %zi\n", iface->ifname, print_ip(&ctx->groupaddr.sin6_addr), rc);

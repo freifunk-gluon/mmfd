@@ -145,9 +145,8 @@ void socket_handle_in(socket_ctx *sctx) {
 
 			break;
 		case ADD_MESHIF:
-			str_meshif = strndup(&line[11], IFNAMSIZ);
+			str_meshif = &line[11];
 			if (!if_add(str_meshif)) {
-				free(str_meshif);
 				break;
 			} else {
 				intercom_update_interfaces(&ctx);

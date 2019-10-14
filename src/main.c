@@ -317,11 +317,6 @@ void loop(struct context *ctx) {
 	if (ctx->efd == -1)
 		exit_errno("epoll_create");
 
-	for (size_t i = 0; i < VECTOR_LEN(ctx->interfaces); i++) {
-		interface *iface = &VECTOR_INDEX(ctx->interfaces, i);
-		change_fd(ctx->efd, iface->unicastfd, EPOLL_CTL_ADD, EPOLLIN | EPOLLET);
-	}
-
 	change_fd(ctx->efd, ctx->tunfd, EPOLL_CTL_ADD, EPOLLIN | EPOLLET);
 	change_fd(ctx->efd, ctx->taskqueue_ctx.fd, EPOLL_CTL_ADD, EPOLLIN);
 

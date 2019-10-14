@@ -73,8 +73,7 @@ bool join_mcast(const struct in6_addr addr, interface *iface) {
 	else if (errno == EADDRINUSE)
 		return true;
 	else {
-		log_error("Could not join multicast group on %s: ", iface ? iface->ifname : "?");
-		perror(NULL);
+		log_error("Could not join multicast group on %s: %s", iface ? iface->ifname : "?", strerror(errno));
 		return false;
 	}
 }

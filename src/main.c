@@ -297,7 +297,7 @@ void change_fd(int efd, int fd, int type, uint32_t events) {
 
 	int s = epoll_ctl(efd, type, fd, &event);
 	if (s == -1)
-		exit_error("epoll_ctl");
+		exit_error("epoll_ctl %d", errno);
 }
 
 bool is_nic_fd(int fd) {

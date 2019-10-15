@@ -143,7 +143,7 @@ bool if_add(char *ifname) {
 
 	if (iface.ifindex) {
 		udp_open(&iface);
-		change_fd(ctx.efd, iface.unicastfd, EPOLL_CTL_ADD, EPOLLIN);
+		change_fd(ctx.efd, iface.unicastfd, EPOLL_CTL_ADD, EPOLLIN | EPOLLET);
 		VECTOR_ADD(ctx.interfaces, iface);
 		return true;
 	}
@@ -190,7 +190,5 @@ void intercom_init(struct context *ctx) {
 	ctx->groupaddr = (struct sockaddr_in6){
 	    .sin6_family = AF_INET6, .sin6_addr = mgroup_addr, .sin6_port = htons(PORT),
 	};
-
-	intercom_update_interfaces(ctx);
 }
 

@@ -312,10 +312,6 @@ bool is_nic_fd(int fd) {
 }
 
 void loop(struct context *ctx) {
-	ctx->efd = epoll_create(1);
-
-	if (ctx->efd == -1)
-		exit_errno("epoll_create");
 
 	change_fd(ctx->efd, ctx->tunfd, EPOLL_CTL_ADD, EPOLLIN | EPOLLET);
 	change_fd(ctx->efd, ctx->taskqueue_ctx.fd, EPOLL_CTL_ADD, EPOLLIN);
@@ -380,6 +376,13 @@ int main(int argc, char *argv[]) {
 	VECTOR_INIT(ctx.neighbours);
 	VECTOR_INIT(ctx.interfaces);
 
+	intercom_init(&ctx);
+
+	ctx.efd = epoll_create(1);
+
+	if (ctx.efd == -1)
+		exit_errno("epoll_create");
+
 	while ((c = getopt(argc, argv, "vhds:D:i:")) != -1)
 		switch (c) {
 			case 'd':
@@ -419,8 +422,6 @@ int main(int argc, char *argv[]) {
 	taskqueue_init(&ctx.taskqueue_ctx);
 
 	print_neighbours_task(NULL);
-
-	intercom_init(&ctx);
 
 	send_hello_task(NULL);
 

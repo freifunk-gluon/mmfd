@@ -18,5 +18,4 @@ RUN DEBIAN_FRONTEND=noninteractive \
     apt-get autoremove && \
     rm -rf /var/lib/apt/lists/*
 
-ENTRYPOINT ["/bin/bash", "-c"]
 

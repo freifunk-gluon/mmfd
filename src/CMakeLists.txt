@@ -4,16 +4,15 @@ if(BUILD_STATIC)
 	message("This build will statically link all libraries")
 	SET(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
 	SET(BUILD_SHARED_LIBS OFF)
-	SET(CMAKE_EXE_LINKER_FLAGS "-static")
+	list(APPEND CMAKE_EXE_LINKER_FLAGS "-static")
 endif(BUILD_STATIC)
-
 
 INCLUDE(FindPkgConfig)
 IF(NOT PKG_CONFIG_FOUND)
         MESSAGE(FATAL_ERROR "Error: pkg-config not found on this system")
 ENDIF(NOT PKG_CONFIG_FOUND)
 
-set(MMFD_CFLAGS "-Wall -Wcast-align -Wextra -Os -std=gnu11 -D_GNU_SOURCE")
+set(MMFD_CFLAGS "-Wall -flto -Wcast-align -Wextra -Os -std=gnu11 -D_GNU_SOURCE")
 pkg_check_modules(_JSON_C json-c)
 
 find_path(JSON_C_INCLUDE_DIR NAMES json-c/json.h HINTS ${_JSON_C_INCLUDE_DIRS})
@@ -21,7 +20,6 @@ find_library(JSON_C_LIBRARIES NAMES json-c HINTS ${_JSON_C_LIBRARY_DIRS})
 
 set(JSON_C_CFLAGS_OTHER "${_JSON_C_CFLAGS_OTHER}" CACHE STRING "Additional compiler flags for json-c")
 set(JSON_C_LDFLAGS_OTHER "${_JSON_C_LDFLAGS_OTHER}" CACHE STRING "Additional linker flags for json-c")
-
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${MMFD_BINARY_DIR} ${CMAKE_CURRENT_BINARY_DIR})
 

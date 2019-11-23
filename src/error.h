@@ -49,13 +49,13 @@ static inline void _exit_error(int status, int errnum, const char *format, ...) 
 static inline void exit_error(const char *format, ...) {
 	va_list ap;
 	va_start(ap, format);
-	_exit_error(1, 0, format, ap);
+	_exit_error(1, errno, format, ap);
 	va_end(ap);
 }
 
 static inline void exit_bug(const char *format, ...) {
 	va_list ap;
 	va_start(ap, format);
-	_exit_error(1, 0, format, ap);
+	_exit_error(1, errno, format, ap);
 	va_end(ap);
 }

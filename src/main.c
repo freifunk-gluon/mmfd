@@ -282,7 +282,6 @@ void tun_handle_in(struct context *ctx, int fd) {
 		// Ignore any non-multicast packets
 		if (hdr->daddr.s6_addr[0] != 0xff) {
 			log_verbose("Dropping non multicast packet destined to %s.\n", print_ip(&hdr->daddr));
-
 			continue;
 		}
 
@@ -403,6 +402,8 @@ int main(int argc, char *argv[]) {
 			case 'i':
 				if (!if_add(optarg))
 					fprintf(stderr, "Could not add device %s. ignoring.\n", optarg);
+				else
+					intercom_update_interfaces(&ctx);
 				break;
 			default:
 				fprintf(stderr, "Invalid parameter %c ignored.\n", c);

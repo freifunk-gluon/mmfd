@@ -6,7 +6,7 @@
 #include "util.h"
 
 #include <search.h>
-
+#include <unistd.h>
 
 #define INTERCOM_GROUP "ff02::6a8b"
 
@@ -84,6 +84,8 @@ bool if_del(char *ifname) {
 		for (size_t i = 0; i < VECTOR_LEN(ctx.interfaces); i++) {
 			interface *iface = &VECTOR_INDEX(ctx.interfaces, i);
 			if (!strcmp(ifname, iface->ifname)) {
+				if (iface->ok)
+					close(iface->unicastfd);
 				VECTOR_DELETE(ctx.interfaces, i);
 				return true;
 			}
@@ -108,7 +110,7 @@ int socket_prepare(interface *iface) {
 
 	if (setsockopt(fd, SOL_SOCKET, SO_BINDTODEVICE, iface->ifname,
 		       strnlen(iface->ifname, IFNAMSIZ))) {
-		exit_error("error on setsockopt (BIND)");
+		exit_error("error on setsockopt (BIND) in socket_prepare()");
 	}
 
 	return fd;
@@ -158,12 +160,13 @@ void intercom_update_interfaces(struct context *ctx) {
 
 			iface->ifindex = if_nametoindex(iface->ifname);
 
-			if (iface->ifindex)
+			if (iface->ifindex) {
 				iface->ok = join_mcast(ctx->groupaddr.sin6_addr, iface);
 
-			if (setsockopt(iface->unicastfd, SOL_SOCKET, SO_BINDTODEVICE, iface->ifname,
-				       strnlen(iface->ifname, IFNAMSIZ))) {
-				exit_error("error on setsockopt (BIND)");
+				if (setsockopt(iface->unicastfd, SOL_SOCKET, SO_BINDTODEVICE, iface->ifname,
+							strnlen(iface->ifname, IFNAMSIZ))) {
+					exit_error("error on setsockopt (BIND) in intercom_update_interfaces()");
+				}
 			}
 		}
 	}

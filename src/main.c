@@ -139,15 +139,15 @@ bool forward_packet(struct context *ctx, uint8_t *packet, ssize_t len, uint64_t 
 
 	if (VECTOR_LEN(ctx->neighbours) == 0) {
 		log_verbose("No neighbour found. Cannot forward packet with destaddr=%s, nonce=" FMT_NONCE ".\n", print_ip(&packethdr->daddr), nonce);
-		return true;
+		return false;
 	}
 
 	for (size_t i = 0; i < VECTOR_LEN(ctx->neighbours); i++) {
 		struct neighbour *neighbour = &VECTOR_INDEX(ctx->neighbours, i);
 
 		int forwardmessage =  src_addr ?
-					memcmp(&src_addr->sin6_addr, &(neighbour->address.sin6_addr), sizeof(struct in6_addr)) &&
-					src_addr->sin6_scope_id == neighbour->address.sin6_scope_id
+					memcmp(&src_addr->sin6_addr, &(neighbour->address.sin6_addr), sizeof(struct in6_addr)) ||
+					src_addr->sin6_scope_id != neighbour->address.sin6_scope_id
 				      : 1;
 
 		if (forwardmessage) {
@@ -164,7 +164,7 @@ bool forward_packet(struct context *ctx, uint8_t *packet, ssize_t len, uint64_t 
 
 
 			if (sendmsg(find_interface_by_name(neighbour->ifname)->unicastfd, &msg, 0) < 0)
-				perror("sendmsg");
+				log_error("sendmsg on interface %s: %s");
 		}
 	}
 
@@ -202,13 +202,13 @@ void udp_handle_in(struct context *ctx, int fd) {
 		if (count == -1 && errno == EAGAIN)
 			break;
 
-		if (count == -1)
+		if (count == -1) {
 			perror("Error during recvmsg");
-		else if (count > 0 && (size_t)count < sizeof(hdr))
-			continue;
-		else if (message.msg_flags & MSG_TRUNC)
+		} else if (count > 0 && (size_t)count < sizeof(hdr)) {
+			log_error("Received packet that is smaller than header size. Skipping packet. This should not happen.\n");
+		} else if (message.msg_flags & MSG_TRUNC) {
 			log_error("Message too long for buffer\n");
-		else {
+		} else {
 			if (is_seen(hdr.nonce))
 				continue;
 			VECTOR_ADD(ctx->seen, hdr.nonce);
@@ -236,10 +236,9 @@ void udp_handle_in(struct context *ctx, int fd) {
 }
 
 void handle_udp_packet(struct context *ctx,  struct sockaddr_in6 *src_addr, struct header *hdr, uint8_t *packet, ssize_t len) {
-	if (forward_packet(ctx, packet, len, hdr->nonce, src_addr)) {
-		log_verbose("writing packet to tun interface\n");
-		write(ctx->tunfd, packet, len);
-	}
+	forward_packet(ctx, packet, len, hdr->nonce, src_addr);
+	log_verbose("writing packet to tun interface\n");
+	write(ctx->tunfd, packet, len);
 }
 
 void handle_packet(struct context *ctx, uint8_t *packet, ssize_t len) {

@@ -164,7 +164,7 @@ bool forward_packet(struct context *ctx, uint8_t *packet, ssize_t len, uint64_t 
 
 
 			if (sendmsg(find_interface_by_name(neighbour->ifname)->unicastfd, &msg, 0) < 0)
-				log_error("sendmsg on interface %s: %s");
+				log_error("sendmsg on interface %s (%s): %s", neighbour->ifname, print_ip(&neighbour->address.sin6_addr),  strerror(errno) );
 		}
 	}
 

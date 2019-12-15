@@ -108,7 +108,10 @@ bool is_seen(uint64_t nonce) {
 	while (VECTOR_LEN(ctx.seen) > 2000)
 		VECTOR_DELETE(ctx.seen, 0);
 
-	for (size_t i = 0; i < VECTOR_LEN(ctx.seen); i++) {
+	for (size_t i = VECTOR_LEN(ctx.seen) -1; i < VECTOR_LEN(ctx.seen); i--) {
+		// if we have seen a packet, it is more likely for it to be at
+		// the end of the vector, starting comparison at the back for
+		// performance gain.
 		log_debug("checking whether we have seen packet " FMT_NONCE ", comparing with " FMT_NONCE "\n", nonce, VECTOR_INDEX(ctx.seen, i));
 		if (VECTOR_INDEX(ctx.seen, i) == nonce) {
 			log_verbose("we already saw nonce " FMT_NONCE "\n", nonce);
